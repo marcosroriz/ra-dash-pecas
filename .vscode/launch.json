@@ -1,0 +1,14 @@
+{
+    "python": "${command:python.interpreterPath}",
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Main",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/app.py", // Path to your Dash app script
+            "cwd": "${workspaceFolder}/src", // Change working directory to `src`
+            "console": "integratedTerminal",
+        }
+    ]
+}

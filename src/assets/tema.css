@@ -1,0 +1,38 @@
+/* Deixa o header em cima de tudo (inclusive mapas) */
+/* header {
+    z-index: 9999 !important;
+} */
+
+/* Icones Para Headers */
+.icon-header {
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+}
+
+/* Center the header text vertically */
+.align-self-center {
+    display: flex;
+    align-items: center;
+    margin: 0;
+}
+
+/* Deixa o popup em cima de tudo (inclusive header) */
+.mantine-Popover-dropdown {
+    z-index: 100000 !important;
+}
+
+/* Cor de fundo dos indicadores */
+.card-box-shadow {
+    box-shadow: 1px 5px 5px #c9c3c3
+}
+
+.full-page-overlay {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 9999 !important;
+    pointer-events: all;
+}
