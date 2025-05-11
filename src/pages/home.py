@@ -32,10 +32,10 @@ import locale_utils
 from db import PostgresSingleton
 
 # Imports gerais
-from modules.entities_utils import get_mecanicos, get_lista_os, get_oficinas, get_secoes, get_modelos, gerar_excel
+from modules.entities_utils import *
 # Imports específicos
 from modules.home.home_service import HomeService
-import modules.home.graficos as home_graficos
+from modules.home.graficos import *
 import modules.home.tabelas as home_tabelas
 
 ##############################################################################
@@ -67,9 +67,9 @@ lista_todas_secoes.insert(0, {"LABEL": "TODAS"})
 df_mecanicos = get_mecanicos(pgEngine)
 
 # Obtem a lista de OS
-df_lista_os = get_lista_os(pgEngine)
-lista_todas_os = df_lista_os.to_dict(orient="records")
-lista_todas_os.insert(0, {"LABEL": "TODAS"})
+df_lista_pecas = get_pecas(pgEngine)
+lista_todas_pecas = df_lista_pecas.to_dict(orient="records")
+lista_todas_pecas.insert(0, {"LABEL": "TODAS"})
 
 
 ##############################################################################
@@ -82,8 +82,8 @@ lista_todas_os.insert(0, {"LABEL": "TODAS"})
 
 
 # Função para validar o input
-def input_valido(datas, min_dias, lista_modelos, lista_oficinas, lista_secaos, lista_os):
-    if datas is None or not datas or None in datas or min_dias is None:
+def input_valido(datas, lista_modelos, lista_oficinas, lista_secaos, lista_pecas):
+    if datas is None or not datas or None in datas:
         return False
 
     if lista_modelos is None or not lista_modelos or None in lista_modelos:
@@ -95,7 +95,7 @@ def input_valido(datas, min_dias, lista_modelos, lista_oficinas, lista_secaos, l
     if lista_secaos is None or not lista_secaos or None in lista_secaos:
         return False
 
-    if lista_os is None or not lista_os or None in lista_os:
+    if lista_pecas is None or not lista_pecas or None in lista_pecas:
         return False
 
     return True
@@ -136,61 +136,132 @@ def corrige_input_oficina(lista_oficinas):
 
 
 @callback(
-    Output("input-select-secao-visao-geral", "value"),
-    Input("input-select-secao-visao-geral", "value"),
-)
-def corrige_input_secao(lista_secaos):
-    return corrige_input(lista_secaos)
-
-
-@callback(
     [
-        Output("input-select-ordens-servico-visao-geral", "options"),
-        Output("input-select-ordens-servico-visao-geral", "value"),
+        Output("input-select-pecas-visao-geral", "options"),
+        Output("input-select-pecas-visao-geral", "value"),
     ],
     [
-        Input("input-select-ordens-servico-visao-geral", "value"),
+        Input("input-intervalo-datas-geral", "value"),
+        Input("input-select-modelo-veiculos-visao-geral", "value"),
+        Input("input-select-oficina-visao-geral", "value"),
         Input("input-select-secao-visao-geral", "value"),
-    ],
+        Input("input-select-pecas-visao-geral", "value"),
+    ]
 )
-def corrige_input_ordem_servico(lista_os, lista_secaos):
-    # Vamos pegar as OS possíveis para as seções selecionadas
-    df_lista_os_secao = df_lista_os
+def corrige_input_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
+    """
+    Atualiza as opções e o valor selecionado do dropdown de peças com base nos filtros aplicados.
 
-    if "TODAS" not in lista_secaos:
-        df_lista_os_secao = df_lista_os_secao[df_lista_os_secao["SECAO"].isin(lista_secaos)]
+    Parâmetros:
+        datas (str | list): Intervalo de datas selecionado.
+        lista_modelos (list): Lista de modelos de veículos selecionados.
+        lista_oficina (list): Lista de oficinas selecionadas.
+        lista_secao (list): Lista de seções selecionadas.
+        lista_pecas (list): Lista atual de peças selecionadas.
 
-    # Essa rotina garante que, ao alterar a seleção de oficinas ou seções, a lista de ordens de serviço seja coerente
-    lista_os_possiveis = df_lista_os_secao.to_dict(orient="records")
-    lista_os_possiveis.insert(0, {"LABEL": "TODAS"})
+    Retorna:
+        tuple:
+            - options (list[dict]): Lista de opções para o dropdown no formato {"label": ..., "value": ...}.
+            - value (list): Lista de valores corrigida para manter a seleção válida com base nos filtros.
+    """
+    df_lista_pecas_secao = df_lista_pecas
 
-    lista_options = [{"label": os["LABEL"], "value": os["LABEL"]} for os in lista_os_possiveis]
+    if "TODAS" not in lista_secao:
+        df_lista_pecas_secao = home_service.get_pecas(datas, lista_modelos, lista_oficina, lista_secao)
 
-    # OK, algor vamos remover as OS que não são possíveis para as seções selecionadas
-    if "TODAS" not in lista_os:
-        df_lista_os_atual = df_lista_os_secao[df_lista_os_secao["LABEL"].isin(lista_os)]
-        lista_os = df_lista_os_atual["LABEL"].tolist()
+    lista_pecas_possiveis = df_lista_pecas_secao.to_dict(orient="records")
+    lista_pecas_possiveis.insert(0, {"LABEL": "TODAS"})
 
-    return lista_options, corrige_input(lista_os)
+    lista_options = [{"label": os["LABEL"], "value": os["LABEL"]} for os in lista_pecas_possiveis]
+
+    if lista_pecas and "TODAS" not in lista_pecas:
+        df_lista_pecas_atual = df_lista_pecas_secao[df_lista_pecas_secao["LABEL"].isin(lista_pecas)]
+        lista_pecas_corrigida = df_lista_pecas_atual["LABEL"].tolist()
+    else:
+        lista_pecas_corrigida = lista_pecas
+
+    return lista_options, corrige_input(lista_pecas_corrigida)
+
+
 
 
 ##############################################################################
 # Callbacks para os gráficos #################################################
 ##############################################################################
 
+@callback(
+    Output("graph-visao-geral-gasto-pecas-mensal", "figure"),
+    [
+        Input("input-intervalo-datas-geral", "value"),
+        Input("input-select-modelo-veiculos-visao-geral", "value"),
+        Input("input-select-oficina-visao-geral", "value"),
+        Input("input-select-secao-visao-geral", "value"),
+        Input("input-select-pecas-visao-geral", "value"),
+    ],
+)
+def plota_grafico_linha_custo_mensal(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
+    # Valida input
+    if not input_valido(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
+        return go.Figure()
 
+    # Obtem os dados
+    df = home_service.get_custo_mensal_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
+    # Gera o gráfico
+    fig = grafico_custo_mensal(df)
+    return fig
+
+
+@callback(
+    Output("graph-de-pecas-trocadas-por-mes", "figure"),
+    [
+        Input("input-intervalo-datas-geral", "value"),
+        Input("input-select-modelo-veiculos-visao-geral", "value"),
+        Input("input-select-oficina-visao-geral", "value"),
+        Input("input-select-secao-visao-geral", "value"),
+        Input("input-select-pecas-visao-geral", "value"),
+    ],
+)
+def plota_grafico_linha_quantidade_mensal(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
+    # Valida input
+    if not input_valido(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
+        return go.Figure()
+
+    # Obtem os dados
+    df = home_service.get_troca_pecas_mensal(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
+    # Gera o gráfico
+    fig = grafico_troca_pecas_mensal(df)
+    return fig
 
 ##############################################################################
 # Callbacks para as tabelas ##################################################
 ##############################################################################
 
 
+@callback(
+    Output("tabela-ranking-de-pecas-mais-caras", "rowData"),
+    [
+        Input("input-intervalo-datas-geral", "value"),
+        Input("input-select-modelo-veiculos-visao-geral", "value"),
+        Input("input-select-oficina-visao-geral", "value"),
+        Input("input-select-secao-visao-geral", "value"),
+        Input("input-select-pecas-visao-geral", "value"),
+    ],
+)
+def atualiza_tabela_rank_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
+    # Valida input
+    if not input_valido(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
+        return []
+
+    # Obtem dados
+    df = home_service.get_rank_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
+
+    return df.to_dict("records")
 
 # Callback para atualizar o link de download quando o botão for clicado
 @callback(
-    Output("download-excel-tipo-os", "data"),
+    Output("download-excel-tabela-pecas", "data"),
     [
-        Input("btn-exportar-tipo-os", "n_clicks"),
+        Input("btn-exportar-tabela-rank-pecas", "n_clicks"),
         Input("input-intervalo-datas-geral", "value"),
         Input("input-select-dias-geral-retrabalho", "value"),
         Input("input-select-modelo-veiculos-visao-geral", "value"),
@@ -200,70 +271,19 @@ def corrige_input_ordem_servico(lista_os, lista_secaos):
     ],
     prevent_initial_call=True
 )
-def download_excel_tabela_top_os(n_clicks, datas, min_dias, lista_modelos, lista_oficinas, lista_secaos, lista_os):
+def download_excel_tabela_top_rank_pecas(n_clicks, datas, min_dias, lista_modelos, lista_oficinas, lista_secaos, lista_os):
     if not n_clicks or n_clicks <= 0: # Garantre que ao iniciar ou carregar a page, o arquivo não seja baixado
         return dash.no_update
 
     date_now = date.today().strftime('%d-%m-%Y')
     
     # Obtem os dados
-    df = home_service.get_top_os_geral_retrabalho(datas, min_dias, lista_modelos, lista_oficinas, lista_secaos, lista_os)
+    df = home_service.get_rank_pecas(datas, min_dias, lista_modelos, lista_oficinas, lista_secaos, lista_os)
 
     excel_data = gerar_excel(df=df)
-    return dcc.send_bytes(excel_data, f"tabela_tipo_os_{date_now}.xlsx")
+    return dcc.send_bytes(excel_data, f"tabela_rank_pecas_{date_now}.xlsx")
 
 
-@callback(
-    Output("download-excel-tabela-colaborador", "data"),
-    [
-        Input("btn-exportar-tabela-colaborador", "n_clicks"),
-        Input("input-intervalo-datas-geral", "value"),
-        Input("input-select-dias-geral-retrabalho", "value"),
-        Input("input-select-modelo-veiculos-visao-geral", "value"),
-        Input("input-select-oficina-visao-geral", "value"),
-        Input("input-select-secao-visao-geral", "value"),
-        Input("input-select-ordens-servico-visao-geral", "value"),
-    ],
-    prevent_initial_call=True
-)
-def download_excel_tabela_colaborador(n_clicks, datas, min_dias, lista_modelos, lista_oficinas, lista_secaos, lista_os):
-    if not n_clicks or n_clicks <= 0: # Garantre que ao iniciar ou carregar a page, o arquivo não seja baixado
-        return dash.no_update
-
-    date_now = date.today().strftime('%d-%m-%Y')
-    
-    # Obtem os dados
-    df = home_service.get_top_os_colaboradores(datas, min_dias, lista_modelos, lista_oficinas, lista_secaos, lista_os)
-
-    excel_data = gerar_excel(df=df)
-    return dcc.send_bytes(excel_data, f"tabela_colaboradores_{date_now}.xlsx")
-
-
-
-@callback(
-    Output("download-excel-tabela-veiculo", "data"),
-    [
-        Input("btn-exportar-tabela-veiculo", "n_clicks"),
-        Input("input-intervalo-datas-geral", "value"),
-        Input("input-select-dias-geral-retrabalho", "value"),
-        Input("input-select-modelo-veiculos-visao-geral", "value"),
-        Input("input-select-oficina-visao-geral", "value"),
-        Input("input-select-secao-visao-geral", "value"),
-        Input("input-select-ordens-servico-visao-geral", "value"),
-    ],
-    prevent_initial_call=True
-)
-def download_excel_tabela_colaborador(n_clicks, datas, min_dias, lista_modelos, lista_oficinas, lista_secaos, lista_os):
-    if not n_clicks or n_clicks <= 0: # Garantre que ao iniciar ou carregar a page, o arquivo não seja baixado
-        return dash.no_update
-
-    date_now = date.today().strftime('%d-%m-%Y')
-    
-    # Obtem os dados
-    df = home_service.get_top_veiculos(datas, min_dias, lista_modelos, lista_oficinas, lista_secaos, lista_os)
-
-    excel_data = gerar_excel(df=df)
-    return dcc.send_bytes(excel_data, f"tabela_veiculo_{date_now}.xlsx")
 
 ##############################################################################
 ### Callbacks para os labels #################################################
@@ -510,8 +530,8 @@ layout = dbc.Container(
                                                 [
                                                     dbc.Label("Peça específica"),
                                                     dcc.Dropdown(
-                                                        id="input-select-ordens-servico-visao-geral",
-                                                        options=[{"label": os["LABEL"], "value": os["LABEL"]} for os in lista_todas_os],
+                                                        id="input-select-pecas-visao-geral",
+                                                        options=[{"label": pecas["LABEL"], "value": pecas["LABEL"]} for pecas in lista_todas_pecas],
                                                         multi=True,
                                                         value=["TODAS"],
                                                         placeholder="Selecione uma ou mais peças específicas...",
@@ -531,6 +551,7 @@ layout = dbc.Container(
                 ),
             ]
         ),
+        #### ALterar graficos para dados de peças
         # Gráfico de Retrabalho por Modelo
         dmc.Space(h=30),
         dbc.Row(
@@ -552,7 +573,7 @@ layout = dbc.Container(
             ],
             align="center",
         ),
-        dcc.Graph(id="graph-gasto-por-mês"),
+        dcc.Graph(id="graph-visao-geral-gasto-pecas-mensal"),
         dmc.Space(h=40),
         # Grafico de Evolução do Retrabalho por Modelo
         dbc.Row(
@@ -566,7 +587,7 @@ layout = dbc.Container(
                                 className="align-self-center",
                             ),
                             dmc.Space(h=5),
-                            gera_labels_inputs("visao-geral-evolucao-por-modelo"),
+                            gera_labels_inputs("gasto-pecas-mensal"),
                         ]
                     ),
                     width=True,
@@ -655,13 +676,13 @@ layout = dbc.Container(
                             dmc.Space(h=5),
                             dbc.Row(
                                 [
-                                    dbc.Col(gera_labels_inputs("visao-geral-tabela-colaborador-os"), width=True),
+                                    dbc.Col(gera_labels_inputs("visao-geral-tabela-rank-pecas"), width=True),
                                     dbc.Col(
                                         html.Div(
                                             [
                                                 html.Button(
                                                     "Exportar para Excel",
-                                                    id="btn-exportar-tabela-colaborador",
+                                                    id="btn-exportar-tabela-rank-pecas",
                                                     n_clicks=0,
                                                     style={
                                                         "background-color": "#007bff",  # Azul
@@ -674,7 +695,7 @@ layout = dbc.Container(
                                                         "font-weight": "bold",
                                                     },
                                                 ),
-                                                dcc.Download(id="download-excel-tabela-colaborador"),
+                                                dcc.Download(id="ddownload-excel-tabela-pecas"),
                                             ],
                                             style={"text-align": "right"},
                                         ),

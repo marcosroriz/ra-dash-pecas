@@ -48,6 +48,18 @@ def get_secoes(dbEngine):
         dbEngine,
     )
 
+def get_pecas(dbEngine):
+    """Retorna todas as pecas"""
+    return pd.read_sql(
+        """
+        SELECT 
+            DISTINCT "PRODUTO" AS "LABEL"
+        FROM 
+            pecas_gerais
+        """,
+        dbEngine,
+    )
+
 
 def get_mecanicos(dbEngine):
     # Colaboradores / Mecânicos
@@ -75,9 +87,9 @@ def get_modelos(dbEngine):
     return pd.read_sql(
         """
         SELECT DISTINCT
-            "DESCRICAO DO MODELO" AS "MODELO"
+            "MODELO" AS "MODELO"
         FROM 
-            mat_view_retrabalho_10_dias mvrd
+            pecas_gerais
         """,
         dbEngine,
     )
