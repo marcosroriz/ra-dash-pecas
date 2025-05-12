@@ -378,4 +378,190 @@ class HomeService:
             logging.error(f"Erro ao retornar os dados: get_custo_mensal_pecas {e}")
             return pd.DataFrame()
         
+
+    def get_principais_pecas(
+        self,
+        datas: List[str],
+        lista_modelos: List[str],
+        lista_oficinas: List[str],
+        lista_secoes: List[str],
+        lista_pecas: List[str]
+    )-> pd.DataFrame:
+        """
+            Retorna um ranking de peças mais utilizadas no período especificado, 
+            com base em filtros aplicados por modelo de veículo, oficina, seção e peças.
+
+            Parâmetros:
+            -----------
+            datas : List[str]
+                Lista com duas datas no formato string (ex: ["01/01/2024", "31/03/2024"])
+                representando o intervalo [data_inicial, data_final].
+
+            lista_modelos : List[str]
+                Lista de modelos de veículos a serem filtrados.
+
+            lista_oficinas : List[str]
+                Lista de oficinas a serem consideradas no filtro.
+
+            lista_secoes : List[str]
+                Lista de seções (ex: áreas, centros de custo, departamentos, etc.) para filtrar os dados.
+
+            lista_pecas : List[str]
+                Lista de nomes de peças para incluir no filtro.
+
+            Retorno:
+            --------
+            pd.DataFrame
+                Um DataFrame contendo o ranking das peças, incluindo:
+                - `posicao`: posição no ranking com base no valor total gasto.
+                - `nome_peca`: nome da peça.
+                - `quantidade`: soma total das quantidades utilizadas.
+                - `frequencia`: número de ocorrências (linhas) da peça.
+                - `valor_total`: valor total gasto com a peça (quantidade * valor unitário).
+                - `valor_por_unidade`: valor médio por unidade da peça.
+        """
+        # Validação simples de entrada
+        if not datas or len(datas) != 2:
+            raise ValueError("O parâmetro 'datas' deve conter duas datas: [data_inicial, data_final].")
+        
+        try:
+            data_inicio = pd.to_datetime(datas[0]).strftime("%d/%m/%Y")
+            data_fim = pd.to_datetime(datas[1]).strftime("%d/%m/%Y")
+
+            subquery_secoes_str = subquery_secoes(lista_secoes)
+            subquery_modelo_str = subquery_modelos(lista_modelos)
+            subquery_ofcina_str = subquery_oficinas(lista_oficinas)
+            subquery_pecas_str = subquery_pecas(lista_pecas)
+                
+
+            query = f"""
+                WITH cte AS (
+                    SELECT distinct on ("id")
+                        "id",
+                        "PRODUTO" AS nome_peca,
+                        "QUANTIDADE",
+                        "VALOR"
+                    FROM 
+                        pecas_gerais
+                    LEFT JOIN 
+                        os_dados ON "NUMERO DA OS" = "OS"
+                    WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'    
+                    {subquery_secoes_str}
+                    {subquery_modelo_str}
+                    {subquery_ofcina_str}
+                    {subquery_pecas_str}
+                ),
+                ranked_pecas AS (
+                    SELECT
+                        nome_peca,
+                        SUM("QUANTIDADE") AS quantidade,
+                        COUNT(*) AS frequencia,
+                        SUM("QUANTIDADE" * "VALOR") AS valor_total,
+                        SUM("QUANTIDADE" * "VALOR") / NULLIF(SUM("QUANTIDADE"), 0) AS valor_por_unidade,
+                        RANK() OVER (ORDER BY SUM("QUANTIDADE" * "VALOR") DESC) AS posicao
+                    FROM cte
+                    GROUP BY nome_peca
+                )
+                SELECT 
+                    nome_peca,
+                    ROUND(quantidade, 2) AS quantidade,
+                    ROUND(valor_total, 2) AS valor_total,
+                    ROUND(valor_por_unidade, 2) AS valor_por_unidade
+                FROM 
+                    ranked_pecas
+                ORDER BY 
+                    quantidade DESC;
+            """
+            return pd.read_sql(query, self.db_engine)
+        
+        except ValueError as e:
+            logging.error(f"Erro ao converter datas: get_custo_mensal_pecas {e}")
+            return pd.DataFrame()
+        except Exception as e:
+            logging.error(f"Erro ao retornar os dados: get_custo_mensal_pecas {e}")
+            return pd.DataFrame()
     
+
+# -----> Arrumar alguma forma de arrumar essas função        
+    # def get_troca_pecas_rank(
+    #     self,
+    #     datas: List[str],
+    #     lista_modelos: List[str],
+    #     lista_oficinas: List[str],
+    #     lista_secoes: List[str],
+    #     lista_pecas: List[str]
+    # )-> pd.DataFrame:
+        
+    #     # Validação simples de entrada
+    #     if not datas or len(datas) != 2:
+    #         raise ValueError("O parâmetro 'datas' deve conter duas datas: [data_inicial, data_final].")
+        
+    #     try:
+    #         data_inicio = pd.to_datetime(datas[0]).strftime("%d/%m/%Y")
+    #         data_fim = pd.to_datetime(datas[1]).strftime("%d/%m/%Y")
+
+    #         subquery_secoes_str = subquery_secoes(lista_secoes)
+    #         subquery_modelo_str = subquery_modelos(lista_modelos)
+    #         subquery_ofcina_str = subquery_oficinas(lista_oficinas)
+    #         subquery_pecas_str = subquery_pecas(lista_pecas)
+                
+
+    #         query = f"""
+    #             select
+    #                 "id",
+    #                 "EQUIPAMENTO",
+    #                 "MODELO",
+    #                 "PRODUTO" AS nome_peca,
+    #                 "QUANTIDADE",
+    #                 "VALOR",
+    #                 "DATA"
+    #             FROM pecas_gerais pg
+    #             LEFT JOIN os_dados od ON "NUMERO DA OS" = "OS"
+    #             WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'    
+    #                 {subquery_secoes_str}
+    #                 {subquery_modelo_str}
+    #                 {subquery_ofcina_str}
+    #                 {subquery_pecas_str};
+    #         """
+    #         df = pd.read_sql(query, self.db_engine)
+
+    #         # Removendo duplicadas e convertendo para datetime antes do agrupamento
+    #         df.drop_duplicates(subset="id", inplace=True)
+    #         df["DATA"] = pd.to_datetime(df["DATA"], dayfirst=True, errors="coerce")
+
+    #         # 1. Agrupar dados por EQUIPAMENTO, MODELO e nome_peca
+    #         df["primeiro_mes"] = df.groupby(["EQUIPAMENTO", "MODELO", "nome_peca"])["DATA"].transform("min").dt.to_period("M").dt.to_timestamp()
+    #         df["ultimo_mes"] = df.groupby(["EQUIPAMENTO", "MODELO", "nome_peca"])["DATA"].transform("max").dt.to_period("M").dt.to_timestamp()
+    #          # Verificando se as colunas "primeiro_mes" e "ultimo_mes" foram criadas corretamente
+    #         print(df[["EQUIPAMENTO", "MODELO", "nome_peca", "primeiro_mes", "ultimo_mes"]].head())  
+
+    #         # 2. Calcular quantidade total e valor total
+    #         agg = df.groupby(["EQUIPAMENTO", "MODELO", "nome_peca"]).agg(
+    #             quantidade_total=("QUANTIDADE", "sum"),
+    #             valor_total=("VALOR", lambda x: (x * df.loc[x.index, "QUANTIDADE"]).sum())
+    #         ).reset_index()
+
+    #         # 3. Calcular meses de diferença e média mensal
+    #         agg["meses"] = ((agg["ultimo_mes"].dt.year - agg["primeiro_mes"].dt.year) * 12 +
+    #                         (agg["ultimo_mes"].dt.month - agg["primeiro_mes"].dt.month))
+    #         agg["media_mensal"] = agg["valor_total"] / agg["meses"].replace(0, pd.NA)
+
+    #         # 4. Calcular média por modelo
+    #         media_modelo = agg.groupby(["MODELO", "nome_peca"])["valor_total"].mean().reset_index(name="valor_medio_modelo")
+
+    #         # 5. Adicionar média do modelo diretamente no agg
+    #         agg = agg.merge(media_modelo, on=["MODELO", "nome_peca"], how="left")
+
+    #         # 6. Calcular a diferença de valor
+    #         agg["diferenca_valor"] = agg["valor_total"] - agg["valor_medio_modelo"]
+
+    #         # 7. Ordenar os resultados por quantidade
+    #         agg = agg.sort_values("quantidade_total", ascending=False)
+
+    #         return agg
+    #     except ValueError as e:
+    #         logging.error(f"Erro ao converter datas: get_custo_mensal_pecas {e}")
+    #         return pd.DataFrame()
+    #     except Exception as e:
+    #         logging.error(f"Erro ao retornar os dados: get_custo_mensal_pecas {e}")
+    #         return pd.DataFrame()        

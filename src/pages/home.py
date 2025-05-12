@@ -259,31 +259,75 @@ def atualiza_tabela_rank_pecas(datas, lista_modelos, lista_oficina, lista_secao,
 
 # Callback para atualizar o link de download quando o botão for clicado
 @callback(
-    Output("download-excel-tabela-pecas", "data"),
+    Output("download-excel-tabela-rank-pecas", "data"),
     [
         Input("btn-exportar-tabela-rank-pecas", "n_clicks"),
         Input("input-intervalo-datas-geral", "value"),
-        Input("input-select-dias-geral-retrabalho", "value"),
         Input("input-select-modelo-veiculos-visao-geral", "value"),
         Input("input-select-oficina-visao-geral", "value"),
         Input("input-select-secao-visao-geral", "value"),
-        Input("input-select-ordens-servico-visao-geral", "value"),
+        Input("input-select-pecas-visao-geral", "value"),
     ],
     prevent_initial_call=True
 )
-def download_excel_tabela_top_rank_pecas(n_clicks, datas, min_dias, lista_modelos, lista_oficinas, lista_secaos, lista_os):
+def download_excel_tabela_top_rank_pecas(n_clicks, datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
     if not n_clicks or n_clicks <= 0: # Garantre que ao iniciar ou carregar a page, o arquivo não seja baixado
         return dash.no_update
 
     date_now = date.today().strftime('%d-%m-%Y')
     
     # Obtem os dados
-    df = home_service.get_rank_pecas(datas, min_dias, lista_modelos, lista_oficinas, lista_secaos, lista_os)
+    df = home_service.get_rank_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
 
     excel_data = gerar_excel(df=df)
     return dcc.send_bytes(excel_data, f"tabela_rank_pecas_{date_now}.xlsx")
 
 
+
+@callback(
+    Output("tabela-principais-pecas", "rowData"),
+    [
+        Input("input-intervalo-datas-geral", "value"),
+        Input("input-select-modelo-veiculos-visao-geral", "value"),
+        Input("input-select-oficina-visao-geral", "value"),
+        Input("input-select-secao-visao-geral", "value"),
+        Input("input-select-pecas-visao-geral", "value"),
+    ],
+)
+def atualiza_tabela_principais_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
+    # Valida input
+    if not input_valido(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
+        return []
+
+    # Obtem dados
+    df = home_service.get_principais_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
+
+    return df.to_dict("records")
+
+# Callback para atualizar o link de download quando o botão for clicado
+@callback(
+    Output("download-excel-tabela-principais-pecas", "data"),
+    [
+        Input("btn-exportar-tabela-rank-pecas", "n_clicks"),
+        Input("input-intervalo-datas-geral", "value"),
+        Input("input-select-modelo-veiculos-visao-geral", "value"),
+        Input("input-select-oficina-visao-geral", "value"),
+        Input("input-select-secao-visao-geral", "value"),
+        Input("input-select-pecas-visao-geral", "value"),
+    ],
+    prevent_initial_call=True
+)
+def download_excel_principais_pecas(n_clicks, datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
+    if not n_clicks or n_clicks <= 0: # Garantre que ao iniciar ou carregar a page, o arquivo não seja baixado
+        return dash.no_update
+
+    date_now = date.today().strftime('%d-%m-%Y')
+    
+    # Obtem os dados
+    df = home_service.get_principais_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
+
+    excel_data = gerar_excel(df=df)
+    return dcc.send_bytes(excel_data, f"tabela_principais_pecas{date_now}.xlsx")
 
 ##############################################################################
 ### Callbacks para os labels #################################################
@@ -298,13 +342,13 @@ def gera_labels_inputs(campo):
         ],
         [
             Input("input-intervalo-datas-geral", "value"),
-            Input("input-select-dias-geral-retrabalho", "value"),
+            Input("input-select-modelo-veiculos-visao-geral", "value"),
             Input("input-select-oficina-visao-geral", "value"),
             Input("input-select-secao-visao-geral", "value"),
-            Input("input-select-ordens-servico-visao-geral", "value"),
+            Input("input-select-pecas-visao-geral", "value"),
         ],
     )
-    def atualiza_labels_inputs(datas, min_dias, lista_oficinas, lista_secaos, lista_os):
+    def atualiza_labels_inputs(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
         labels_antes = [
             # DashIconify(icon="material-symbols:filter-arrow-right", width=20),
             dmc.Badge("Filtro", color="gray", variant="outline"),
@@ -318,30 +362,29 @@ def gera_labels_inputs(campo):
 
             datas_label = [dmc.Badge(f"{data_inicio_str} a {data_fim_str}", variant="outline")]
 
-        min_dias_label = [dmc.Badge(f"{min_dias} dias", variant="outline")]
         lista_oficinas_labels = []
         lista_secaos_labels = []
         lista_os_labels = []
 
-        if lista_oficinas is None or not lista_oficinas or "TODAS" in lista_oficinas:
+        if lista_oficina is None or not lista_oficina or "TODAS" in lista_oficina:
             lista_oficinas_labels.append(dmc.Badge("Todas as oficinas", variant="outline"))
         else:
-            for oficina in lista_oficinas:
+            for oficina in lista_oficina:
                 lista_oficinas_labels.append(dmc.Badge(oficina, variant="dot"))
 
-        if lista_secaos is None or not lista_secaos or "TODAS" in lista_secaos:
+        if lista_secao is None or not lista_secao or "TODAS" in lista_secao:
             lista_secaos_labels.append(dmc.Badge("Todas as seções", variant="outline"))
         else:
-            for secao in lista_secaos:
+            for secao in lista_secao:
                 lista_secaos_labels.append(dmc.Badge(secao, variant="dot"))
 
-        if lista_os is None or not lista_os or "TODAS" in lista_os:
-            lista_os_labels.append(dmc.Badge("Todas as ordens de serviço", variant="outline"))
+        if lista_pecas is None or not lista_pecas or "TODAS" in lista_pecas:
+            lista_os_labels.append(dmc.Badge("Todas as peças", variant="outline"))
         else:
-            for os in lista_os:
-                lista_os_labels.append(dmc.Badge(f"OS: {os}", variant="dot"))
+            for pecas in lista_pecas:
+                lista_os_labels.append(dmc.Badge(f"Peças: {pecas}", variant="dot"))
 
-        return [dmc.Group(labels_antes + datas_label + min_dias_label + lista_oficinas_labels + lista_os_labels)]
+        return [dmc.Group(labels_antes + datas_label + lista_oficinas_labels + lista_os_labels)]
 
     # Cria o componente
     return dmc.Group(id=f"{campo}-labels", children=[])
@@ -630,7 +673,7 @@ layout = dbc.Container(
                                                         "font-weight": "bold",
                                                     },
                                                 ),
-                                                dcc.Download(id="download-excel-tipo-os"),
+                                                dcc.Download(id="download-excel-tabela-rank-pecas"),
                                             ],
                                             style={"text-align": "right"},
                                         ),
@@ -670,19 +713,19 @@ layout = dbc.Container(
                     dbc.Row(
                         [
                             html.H4(
-                                "Veículos que mais trocaram peças",
+                                "PRINCIPAIS PEÇAS",
                                 className="align-self-center",
                             ),
                             dmc.Space(h=5),
                             dbc.Row(
                                 [
-                                    dbc.Col(gera_labels_inputs("visao-geral-tabela-rank-pecas"), width=True),
+                                    dbc.Col(gera_labels_inputs("visao-geral-tabela-principais-pecas"), width=True),
                                     dbc.Col(
                                         html.Div(
                                             [
                                                 html.Button(
                                                     "Exportar para Excel",
-                                                    id="btn-exportar-tabela-rank-pecas",
+                                                    id="btn-exportar-tabela-principais-pecas",
                                                     n_clicks=0,
                                                     style={
                                                         "background-color": "#007bff",  # Azul
@@ -695,7 +738,7 @@ layout = dbc.Container(
                                                         "font-weight": "bold",
                                                     },
                                                 ),
-                                                dcc.Download(id="ddownload-excel-tabela-pecas"),
+                                                dcc.Download(id="download-excel-tabela-principais-pecas"),
                                             ],
                                             style={"text-align": "right"},
                                         ),
@@ -712,84 +755,89 @@ layout = dbc.Container(
             ],
             align="center",
         ),
-        dmc.Space(h=20),
-        dag.AgGrid(
-            id="tabela-veiculos-que-mais-trocam-pecas",
-            columnDefs=home_tabelas.tbl_veiculos_que_mais_trocam_pecas,
-            rowData=[],
-            defaultColDef={"filter": True, "floatingFilter": True},
-            columnSize="autoSize",
-            dashGridOptions={
-                "localeText": locale_utils.AG_GRID_LOCALE_BR,
-            },
-            # Permite resize --> https://community.plotly.com/t/anyone-have-better-ag-grid-resizing-scheme/78398/5
-            style={"height": 400, "resize": "vertical", "overflow": "hidden"},
-        ),
-        dmc.Space(h=40),
-        # Tabela com as estatísticas gerais por Veículo
-        dbc.Row(
-            [
-                dbc.Col(DashIconify(icon="mdi:bus-wrench", width=45), width="auto"),
-                dbc.Col(
-                    dbc.Row(
-                        [
-                            html.H4(
-                                "Tabela principais peças",
-                                className="align-self-center",
-                            ),
-                            dmc.Space(h=5),
-                            dbc.Row(
-                                [
-                                    dbc.Col(gera_labels_inputs("visao-geral-tabela-veiculo"), width=True),
-                                    dbc.Col(
-                                        html.Div(
-                                            [
-                                                html.Button(
-                                                    "Exportar para Excel",
-                                                    id="btn-exportar-tabela-veiculo",
-                                                    n_clicks=0,
-                                                    style={
-                                                        "background-color": "#007bff",  # Azul
-                                                        "color": "white",
-                                                        "border": "none",
-                                                        "padding": "10px 20px",
-                                                        "border-radius": "8px",
-                                                        "cursor": "pointer",
-                                                        "font-size": "16px",
-                                                        "font-weight": "bold",
-                                                    },
-                                                ),
-                                                dcc.Download(id="download-excel-tabela-veiculo"),
-                                            ],
-                                            style={"text-align": "right"},
-                                        ),
-                                        width="auto",
-                                    ),
-                                ],
-                                align="center",
-                                justify="between",  # Deixa os itens espaçados
-                            ),
-                        ]
-                    ),
-                    width=True,
-                ),
-            ],
-            align="center",
-        ),
+
         dmc.Space(h=20),
         dag.AgGrid(
             id="tabela-principais-pecas",
             columnDefs=home_tabelas.tbl_pincipais_pecas,
             rowData=[],
-            defaultColDef={"filter": True, "floatingFilter": True},
-            columnSize="autoSize",
+            defaultColDef={
+            "filter": True,
+            "floatingFilter": True,
+            "resizable": True,
+            "autoSize": True,  # <- aqui já resolve para todas
+            },
+            columnSize="responsiveSizeToFit",  # Corrigido aqui
             dashGridOptions={
                 "localeText": locale_utils.AG_GRID_LOCALE_BR,
             },
-            # Permite resize --> https://community.plotly.com/t/anyone-have-better-ag-grid-resizing-scheme/78398/5
             style={"height": 400, "resize": "vertical", "overflow": "hidden"},
         ),
         dmc.Space(h=40),
+                # dmc.Space(h=20),
+        # dag.AgGrid(
+        #     id="tabela-veiculos-que-mais-trocam-pecas",
+        #     columnDefs=home_tabelas.tbl_veiculos_que_mais_trocam_pecas,
+        #     rowData=[],
+        #     defaultColDef={"filter": True, "floatingFilter": True},
+        #     columnSize="autoSize",
+        #     dashGridOptions={
+        #         "localeText": locale_utils.AG_GRID_LOCALE_BR,
+        #     },
+        #     # Permite resize --> https://community.plotly.com/t/anyone-have-better-ag-grid-resizing-scheme/78398/5
+        #     style={"height": 400, "resize": "vertical", "overflow": "hidden"},
+        # ),
+        # dmc.Space(h=40),
+        # # Tabela com as estatísticas gerais por Veículo
+        # dbc.Row(
+        #     [
+        #         dbc.Col(DashIconify(icon="mdi:bus-wrench", width=45), width="auto"),
+        #         dbc.Col(
+        #             dbc.Row(
+        #                 [
+        #                     html.H4(
+        #                         "Tabela principais peças",
+        #                         className="align-self-center",
+        #                     ),
+        #                     dmc.Space(h=5),
+        #                     dbc.Row(
+        #                         [
+        #                             dbc.Col(gera_labels_inputs("visao-geral-tabela-principais-pecas"), width=True),
+        #                             dbc.Col(
+        #                                 html.Div(
+        #                                     [
+        #                                         html.Button(
+        #                                             "Exportar para Excel",
+        #                                             id="btn-exportar-tabela-veiculo",
+        #                                             n_clicks=0,
+        #                                             style={
+        #                                                 "background-color": "#007bff",  # Azul
+        #                                                 "color": "white",
+        #                                                 "border": "none",
+        #                                                 "padding": "10px 20px",
+        #                                                 "border-radius": "8px",
+        #                                                 "cursor": "pointer",
+        #                                                 "font-size": "16px",
+        #                                                 "font-weight": "bold",
+        #                                             },
+        #                                         ),
+        #                                         dcc.Download(id="download-excel-mais-trocam-pecas"),
+        #                                     ],
+        #                                     style={"text-align": "right"},
+        #                                 ),
+        #                                 width="auto",
+        #                             ),
+        #                         ],
+        #                         align="center",
+        #                         justify="between",  # Deixa os itens espaçados
+        #                     ),
+        #                 ]
+        #             ),
+        #             width=True,
+        #         ),
+        #     ],
+        #     align="center",
+        # ),
     ]
 )
 

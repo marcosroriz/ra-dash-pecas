@@ -43,17 +43,17 @@ tbl_ranking_de_pecas_mais_trocadas = [
     },
 ]
 
-# Tabela Top OS Colaborador
+
 tbl_veiculos_que_mais_trocam_pecas = [
     {
-        "field": "VEICULO",
+        "field": "EQUIPAMENTO",
         "headerName": "VEÍCULO",
         "pinned": "left",
     },
     {"field": "MODELO", "headerName": "MODELO", "minWidth": 200, "maxWidth": 200},
-    {"field": "QUANTIDADE", "headerName": "QUANTIDADE DE PEÇAS", "filter": "agNumberColumnFilter", "minWidth": 200, "maxWidth": 200},
+    {"field": "quantidade_total", "headerName": "QUANTIDADE DE PEÇAS", "filter": "agNumberColumnFilter", "minWidth": 200, "maxWidth": 200},
     {
-        "field": "VALOR_GASTO",
+        "field": "valor_total",
         "headerName": "VALOR GASTO",
         "wrapHeaderText": True,
         "autoHeaderHeight": True,
@@ -61,7 +61,7 @@ tbl_veiculos_que_mais_trocam_pecas = [
         "type": ["numericColumn"],
     },
     {
-        "field": "VALOR_MEDIO_MODELO",
+        "field": "valor_medio_modelo",
         "headerName": "VALOR MÉDIO DO MODELO",
         "wrapHeaderText": True,
         "autoHeaderHeight": True,
@@ -69,7 +69,7 @@ tbl_veiculos_que_mais_trocam_pecas = [
         "type": ["numericColumn"],
     },
     {
-        "field": "DIFERANÇA",
+        "field": "diferenca_valor",
         "headerName": "VALOR MEDIO - VALOR GASTO",
         "wrapHeaderText": True,
         "autoHeaderHeight": True,
@@ -77,7 +77,7 @@ tbl_veiculos_que_mais_trocam_pecas = [
         "type": ["numericColumn"],
     },
     {
-        "field": "MEDIA_POR_MES",
+        "field": "media_mensal",
         "headerName": "MÉDIA DO GASTO POR MÊS",
         "filter": "agNumberColumnFilter",
         "valueFormatter": {"function": "params.value.toLocaleString('pt-BR') + '%'"},
@@ -88,40 +88,47 @@ tbl_veiculos_que_mais_trocam_pecas = [
 # Tabela Top Veiculo
 tbl_pincipais_pecas = [
     {
-        "field": "PECA",
+        "field": "nome_peca",
         "headerName": "PEÇA",
         "minWidth": 350,
         "pinned": "left",
     },
     {
-        "field": "QUANTIDADE",
+        "field": "quantidade",
         "headerName": "QUANTIDADE",
         "minWidth": 200,
         "maxWidth": 200,
         "pinned": "left",
+        "type": ["numericColumn"],
+
     },
     {
-        "field": "VALOR_TOTAL",
+        "field": "valor_total",
         "headerName": "VALOR TOTAL",
         "wrapHeaderText": True,
         "autoHeaderHeight": True,
         "filter": "agNumberColumnFilter",
+        "maxWidth": 350,
+        "valueFormatter": {"function": "'R$' + params.value.toLocaleString('pt-BR')"},
         "type": ["numericColumn"],
     },
     {
-        "field": "VALOR_POR_PECA",
+        "field": "valor_por_unidade",
         "headerName": "VALOR POR PEÇA",
         "filter": "agNumberColumnFilter",
-        "valueFormatter": {"function": "params.value.toLocaleString('pt-BR') + '%'"},
+        # "maxWidth": 350,
+        "flex": 1,  # <-- esta linha permite que essa coluna "preencha" o espaço restante
+        "valueFormatter": {"function": "'R$' + params.value.toLocaleString('pt-BR')"},
         "type": ["numericColumn"],
-    },
-    {
-        "field": "QUANTIDADE_MES",
-        "headerName": "QUANTIDADE POR MÊS",
-        "wrapHeaderText": True,
-        "autoHeaderHeight": True,
-        "filter": "agNumberColumnFilter",
-        "maxWidth": 200,
-        "type": ["numericColumn"],
-    },
+        "autoSize": True, 
+    }
+    # {
+    #     "field": "QUANTIDADE_MES",
+    #     "headerName": "QUANTIDADE POR MÊS",
+    #     "wrapHeaderText": True,
+    #     "autoHeaderHeight": True,
+    #     "filter": "agNumberColumnFilter",
+    #     "maxWidth": 350,
+    #     "type": ["numericColumn"],
+    # },
 ]
