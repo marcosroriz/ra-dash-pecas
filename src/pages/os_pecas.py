@@ -32,10 +32,9 @@ import locale_utils
 from db import PostgresSingleton
 
 # Imports gerais
-import modules.home.tabelas as home_tabelas
 from modules.entities_utils import *
 # Imports específicos
-from modules.home.graficos import *
+from modules.os.graficos import *
 from modules.os.os_service import ServiceOS
 
 ##############################################################################
@@ -88,7 +87,7 @@ lista_todas_os.insert(0, {"LABEL": "TODAS"})
 
 
 # Função para validar o input
-def input_valido(datas, lista_modelos, lista_oficinas, lista_secaos, lista_pecas):
+def input_valido(datas, lista_modelos, lista_oficinas, lista_secaos, lista_os):
     if datas is None or not datas or None in datas:
         return False
 
@@ -101,7 +100,7 @@ def input_valido(datas, lista_modelos, lista_oficinas, lista_secaos, lista_pecas
     if lista_secaos is None or not lista_secaos or None in lista_secaos:
         return False
 
-    if lista_pecas is None or not lista_pecas or None in lista_pecas:
+    if lista_os is None or not lista_os or None in lista_os:
         return False
 
     return True
@@ -194,6 +193,27 @@ def corrige_input_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_
 ##############################################################################
 # Callbacks para os gráficos #################################################
 ##############################################################################
+
+@callback(
+    Output("graph-pecas-mais-trocadas", "figure"),
+    [
+        Input("input-intervalo-datas-pecas-os", "value"),
+        Input("input-select-modelo-veiculos-pecas-os", "value"),
+        Input("input-select-oficina-pecas-os", "value"),
+        Input("input-select-secao-pecas-os", "value"),
+        Input("input-select-pecas-os", "value"),
+    ],
+)
+def plota_grafico_barra_pecas_trocadas(datas, lista_modelos, lista_oficina, lista_secao, lista_os):
+    # Valida input
+    if not input_valido(datas, lista_modelos, lista_oficina, lista_secao, lista_os):
+        return go.Figure()
+
+    # Obtem os dados
+    df = os_service.get_pecas_trocadas_por_os(datas, lista_modelos, lista_oficina, lista_secao, lista_os)
+    # Gera o gráfico
+    fig = grafico_pecas_mais_trocadas(df)
+    return fig
 
 ##############################################################################
 ### Callbacks para os labels #################################################
@@ -453,6 +473,28 @@ layout = dbc.Container(
                                     ),
                                     md=12,
                                 ),
+                                dmc.Space(h=30),
+                                dbc.Row(
+                                    [
+                                        dbc.Col(DashIconify(icon="mdi:chart-line", width=45), width="auto"),
+                                        dbc.Col(
+                                            dbc.Row(
+                                                [
+                                                    html.H4(
+                                                        "Gráfico de pecas mais trocadas por OS",
+                                                        className="align-self-center",
+                                                    ),
+                                                    dmc.Space(h=5),
+                                                    gera_labels_inputs("pecas-mais-trocadas"),
+                                                ]
+                                            ),
+                                            width=True,
+                                        ),
+                                    ],
+                                    align="center",
+                                ),
+                                dcc.Graph(id="graph-pecas-mais-trocadas"),
+                                
                             ]
                         ),
                     ],
