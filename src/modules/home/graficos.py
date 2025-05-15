@@ -1,69 +1,89 @@
 import pandas as pd
-import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
-def grafico_custo_mensal(dataframe: pd.DataFrame) -> any:
+def grafico_custo_quantidade_mensal(
+    df_custo: pd.DataFrame,
+    df_quantidade: pd.DataFrame
+) -> go.Figure:
     """
-    Gera um gráfico de linha para comparar o custo mensal de peças recondicionadas e não recondicionadas.
+    Gera dois gráficos de linha lado a lado:
+        1. Custo mensal por tipo de peça
+        2. Quantidade mensal de peças trocadas por tipo
 
-    A função cria um gráfico interativo onde o eixo X mostra os meses e o eixo Y mostra o custo total
-    para cada tipo de peça, com a linha colorida de acordo com o tipo de peça.
-
-    Parâmetros:
+    Parâmetros
     ----------
-    dataframe : pd.DataFrame
-        O DataFrame com os dados do custo das peças. As colunas devem ser:
-        - 'mes' (str): O mês no formato 'YYYY-MM'.
-        - 'custo_total' (float): O valor do custo total mensal.
-        - 'tipo_peca' (str): O tipo de peça ('Recondicionada' ou 'Nao Recondicionada').
+    df_custo : pd.DataFrame
+        Deve ter as colunas:
+            - 'mes' (datetime ou str 'YYYY-MM')
+            - 'custo_total' (float)
+            - 'tipo_peca' (str)  -> valores 'Recondicionada' ou 'Nao Recondicionada'
 
-    Retorna:
+    df_quantidade : pd.DataFrame
+        Deve ter as colunas:
+            - 'mes' (datetime ou str 'YYYY-MM')
+            - 'quantidade_total' (int)
+            - 'tipo_peca' (str)
+
+    Retorno
     -------
     fig : plotly.graph_objects.Figure
-        O gráfico de linha comparando os custos mensais das peças.
+        Figure com os dois subplots.
     """
-    dataframe['tipo_peca'] = dataframe['tipo_peca'].replace({
-        'Recondicionada': 'Peça Recondicionada',
-        'Nao Recondicionada': 'Peça Nova'
-    })
-    fig = px.line(dataframe, 
-                  x='mes', 
-                  y='custo_total', 
-                  color='tipo_peca', 
-                  labels={'custo_total': 'Custo Total', 'mes': 'Mês'},
+
+    # Padroniza rótulos dos tipos de peça
+    mapa_tipos = {"Recondicionada": "Peça Recondicionada",
+                  "Nao Recondicionada": "Peça Nova"}
+    df_custo["tipo_peca"] = df_custo["tipo_peca"].replace(mapa_tipos)
+    df_quantidade["tipo_peca"] = df_quantidade["tipo_peca"].replace(mapa_tipos)
+
+    # Garante colunas de mês legíveis
+    df_custo["mes"] = pd.to_datetime(df_custo["mes"])
+    df_quantidade["mes"] = pd.to_datetime(df_quantidade["mes"])
+    df_custo["mes_fmt"] = df_custo["mes"].dt.strftime("%b %Y")
+    df_quantidade["mes_fmt"] = df_quantidade["mes"].dt.strftime("%b %Y")
+
+    # Cria os dois subplots
+    fig = make_subplots(
+        rows=1,
+        cols=2,
+        subplot_titles=("Custo com Peças por Mês",
+                        "Quantidade de Peças Trocadas por Mês"),
+        shared_yaxes=False
+    )
+
+    # ---------- Gráfico 1: CUSTO ----------
+    for tipo in df_custo["tipo_peca"].unique():
+        dados = df_custo[df_custo["tipo_peca"] == tipo]
+        fig.add_trace(
+            go.Scatter(
+                x=dados["mes_fmt"],
+                y=dados["custo_total"],
+                mode="lines+markers",
+                name=tipo
+            ),
+            row=1, col=1
         )
-    fig.update_layout(legend_title_text='Tipo de Peça')
-    return fig
 
-def grafico_troca_pecas_mensal(dataframe: pd.DataFrame) -> any:
-    """
-    Gera um gráfico de linha para comparar a quantidade de peças trocadas mensalmente, com a distinção entre peças recondicionadas e peças novas.
-
-    A função cria um gráfico interativo onde o eixo X mostra os meses e o eixo Y mostra a quantidade total de peças trocadas,
-    com a linha colorida de acordo com o tipo de peça (Recondicionada ou Nova).
-
-    Parâmetros:
-    ----------
-    dataframe : pd.DataFrame
-        O DataFrame com os dados das trocas de peças. As colunas devem ser:
-        - 'mes' (str): O mês no formato 'YYYY-MM'.
-        - 'quantidade_total' (int): A quantidade total de peças trocadas.
-        - 'tipo_peca' (str): O tipo de peça ('Recondicionada' ou 'Nao Recondicionada').
-
-    Retorna:
-    -------
-    fig : plotly.graph_objects.Figure
-        O gráfico de linha comparando as quantidades mensais das peças trocadas.
-    
-    """
-    dataframe['tipo_peca'] = dataframe['tipo_peca'].replace({
-        'Recondicionada': 'Peça Recondicionada',
-        'Nao Recondicionada': 'Peça Nova'
-    })
-    fig = px.line(dataframe, 
-                  x='mes', 
-                  y='quantidade_total', 
-                  color='tipo_peca', 
-                  labels={'quantidade_total': 'Quantidade Total', 'mes': 'Mês'},
+    # ---------- Gráfico 2: QUANTIDADE ----------
+    for tipo in df_quantidade["tipo_peca"].unique():
+        dados = df_quantidade[df_quantidade["tipo_peca"] == tipo]
+        fig.add_trace(
+            go.Scatter(
+                x=dados["mes_fmt"],
+                y=dados["quantidade_total"],
+                mode="lines+markers",
+                name=tipo,
+                showlegend=False  # evita legenda duplicada
+            ),
+            row=1, col=2
         )
-    fig.update_layout(legend_title_text='Tipo de Peça')
+
+    # Layout final
+    fig.update_layout(
+        height=500,
+        width=1200,
+        legend_title="Tipo de Peça"
+    )
+
     return fig

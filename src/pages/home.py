@@ -190,7 +190,7 @@ def corrige_input_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_
 ##############################################################################
 
 @callback(
-    Output("graph-visao-geral-gasto-pecas-mensal", "figure"),
+    Output("graph-visao-geral-gasto-troca-pecas-mensal", "figure"),
     [
         Input("input-intervalo-datas-geral", "value"),
         Input("input-select-modelo-veiculos-visao-geral", "value"),
@@ -205,32 +205,13 @@ def plota_grafico_linha_custo_mensal(datas, lista_modelos, lista_oficina, lista_
         return go.Figure()
 
     # Obtem os dados
-    df = home_service.get_custo_mensal_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
+    df_custo = home_service.get_custo_mensal_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
+    df_quantidade = home_service.get_troca_pecas_mensal(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
+
     # Gera o gráfico
-    fig = grafico_custo_mensal(df)
+    fig = grafico_custo_quantidade_mensal(df_custo, df_quantidade)
     return fig
 
-
-@callback(
-    Output("graph-de-pecas-trocadas-por-mes", "figure"),
-    [
-        Input("input-intervalo-datas-geral", "value"),
-        Input("input-select-modelo-veiculos-visao-geral", "value"),
-        Input("input-select-oficina-visao-geral", "value"),
-        Input("input-select-secao-visao-geral", "value"),
-        Input("input-select-pecas-visao-geral", "value"),
-    ],
-)
-def plota_grafico_linha_quantidade_mensal(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
-    # Valida input
-    if not input_valido(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
-        return go.Figure()
-
-    # Obtem os dados
-    df = home_service.get_troca_pecas_mensal(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
-    # Gera o gráfico
-    fig = grafico_troca_pecas_mensal(df)
-    return fig
 
 ##############################################################################
 # Callbacks para as tabelas ##################################################
@@ -619,29 +600,7 @@ layout = dbc.Container(
             ],
             align="center",
         ),
-        dcc.Graph(id="graph-visao-geral-gasto-pecas-mensal"),
-        dmc.Space(h=40),
-        # Grafico de Evolução do Retrabalho por Modelo
-        dbc.Row(
-            [
-                dbc.Col(DashIconify(icon="fluent:arrow-trending-settings-20-filled", width=45), width="auto"),
-                dbc.Col(
-                    dbc.Row(
-                        [
-                            html.H4(
-                                "Gráfico de peças trocadas por mês",
-                                className="align-self-center",
-                            ),
-                            dmc.Space(h=5),
-                            gera_labels_inputs("gasto-pecas-mensal"),
-                        ]
-                    ),
-                    width=True,
-                ),
-            ],
-            align="center",
-        ),
-        dcc.Graph(id="graph-de-pecas-trocadas-por-mes"),
+        dcc.Graph(id="graph-visao-geral-gasto-troca-pecas-mensal"),
         dmc.Space(h=40),
         # Tabela com as estatísticas gerais de Retrabalho
         dbc.Row(
