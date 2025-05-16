@@ -190,7 +190,7 @@ def corrige_input_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_
 ##############################################################################
 
 @callback(
-    Output("graph-visao-geral-gasto-pecas-mensal", "figure"),
+    Output("graph-visao-geral-gasto-troca-pecas-mensal", "figure"),
     [
         Input("input-intervalo-datas-geral", "value"),
         Input("input-select-modelo-veiculos-visao-geral", "value"),
@@ -205,32 +205,13 @@ def plota_grafico_linha_custo_mensal(datas, lista_modelos, lista_oficina, lista_
         return go.Figure()
 
     # Obtem os dados
-    df = home_service.get_custo_mensal_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
+    df_custo = home_service.get_custo_mensal_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
+    df_quantidade = home_service.get_troca_pecas_mensal(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
+
     # Gera o gráfico
-    fig = grafico_custo_mensal(df)
+    fig = grafico_custo_quantidade_mensal(df_custo, df_quantidade)
     return fig
 
-
-@callback(
-    Output("graph-de-pecas-trocadas-por-mes", "figure"),
-    [
-        Input("input-intervalo-datas-geral", "value"),
-        Input("input-select-modelo-veiculos-visao-geral", "value"),
-        Input("input-select-oficina-visao-geral", "value"),
-        Input("input-select-secao-visao-geral", "value"),
-        Input("input-select-pecas-visao-geral", "value"),
-    ],
-)
-def plota_grafico_linha_quantidade_mensal(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
-    # Valida input
-    if not input_valido(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
-        return go.Figure()
-
-    # Obtem os dados
-    df = home_service.get_troca_pecas_mensal(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
-    # Gera o gráfico
-    fig = grafico_troca_pecas_mensal(df)
-    return fig
 
 ##############################################################################
 # Callbacks para as tabelas ##################################################
@@ -238,7 +219,10 @@ def plota_grafico_linha_quantidade_mensal(datas, lista_modelos, lista_oficina, l
 
 
 @callback(
-    Output("tabela-ranking-de-pecas-mais-caras", "rowData"),
+    [
+        Output("loading-overlay-visao-geral", "visible"),
+        Output("tabela-ranking-de-pecas-mais-caras", "rowData"),
+    ],
     [
         Input("input-intervalo-datas-geral", "value"),
         Input("input-select-modelo-veiculos-visao-geral", "value"),
@@ -255,7 +239,7 @@ def atualiza_tabela_rank_pecas(datas, lista_modelos, lista_oficina, lista_secao,
     # Obtem dados
     df = home_service.get_rank_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
 
-    return df.to_dict("records")
+    return False, df.to_dict("records")
 
 # Callback para atualizar o link de download quando o botão for clicado
 @callback(
@@ -308,7 +292,7 @@ def atualiza_tabela_principais_pecas(datas, lista_modelos, lista_oficina, lista_
 @callback(
     Output("download-excel-tabela-principais-pecas", "data"),
     [
-        Input("btn-exportar-tabela-rank-pecas", "n_clicks"),
+        Input("btn-exportar-tabela-principais-pecas", "n_clicks"),
         Input("input-intervalo-datas-geral", "value"),
         Input("input-select-modelo-veiculos-visao-geral", "value"),
         Input("input-select-oficina-visao-geral", "value"),
@@ -327,7 +311,7 @@ def download_excel_principais_pecas(n_clicks, datas, lista_modelos, lista_oficin
     df = home_service.get_principais_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
 
     excel_data = gerar_excel(df=df)
-    return dcc.send_bytes(excel_data, f"tabela_principais_pecas{date_now}.xlsx")
+    return dcc.send_bytes(excel_data, f"tabela_principais_pecas_{date_now}.xlsx")
 
 ##############################################################################
 ### Callbacks para os labels #################################################
@@ -396,22 +380,22 @@ def gera_labels_inputs(campo):
 layout = dbc.Container(
     [
         # Loading
-        # dmc.LoadingOverlay(
-        #     visible=True,
-        #     id="loading-overlay-guia-geral",
-        #     loaderProps={"size": "xl"},
-        #     overlayProps={
-        #         "radius": "lg",
-        #         "blur": 2,
-        #         "style": {
-        #             "top": 0,  # Start from the top of the viewport
-        #             "left": 0,  # Start from the left of the viewport
-        #             "width": "100vw",  # Cover the entire width of the viewport
-        #             "height": "100vh",  # Cover the entire height of the viewport
-        #         },
-        #     },
-        #     zIndex=10,
-        # ),
+        dmc.LoadingOverlay(
+            visible=True,
+            id="loading-overlay-visao-geral",
+            loaderProps={"size": "xl"},
+            overlayProps={
+                "radius": "lg",
+                "blur": 2,
+                "style": {
+                    "top": 0,  # Start from the top of the viewport
+                    "left": 0,  # Start from the left of the viewport
+                    "width": "100vw",  # Cover the entire width of the viewport
+                    "height": "100vh",  # Cover the entire height of the viewport
+                },
+            },
+            zIndex=10,
+        ),
         # Cabeçalho
         dbc.Row(
             [
@@ -616,29 +600,7 @@ layout = dbc.Container(
             ],
             align="center",
         ),
-        dcc.Graph(id="graph-visao-geral-gasto-pecas-mensal"),
-        dmc.Space(h=40),
-        # Grafico de Evolução do Retrabalho por Modelo
-        dbc.Row(
-            [
-                dbc.Col(DashIconify(icon="fluent:arrow-trending-settings-20-filled", width=45), width="auto"),
-                dbc.Col(
-                    dbc.Row(
-                        [
-                            html.H4(
-                                "Gráfico de peças trocadas por mês",
-                                className="align-self-center",
-                            ),
-                            dmc.Space(h=5),
-                            gera_labels_inputs("gasto-pecas-mensal"),
-                        ]
-                    ),
-                    width=True,
-                ),
-            ],
-            align="center",
-        ),
-        dcc.Graph(id="graph-de-pecas-trocadas-por-mes"),
+        dcc.Graph(id="graph-visao-geral-gasto-troca-pecas-mensal"),
         dmc.Space(h=40),
         # Tabela com as estatísticas gerais de Retrabalho
         dbc.Row(
@@ -660,7 +622,7 @@ layout = dbc.Container(
                                             [
                                                 html.Button(
                                                     "Exportar para Excel",
-                                                    id="btn-exportar-tipo-os",
+                                                    id="btn-exportar-tabela-rank-pecas",
                                                     n_clicks=0,
                                                     style={
                                                         "background-color": "#007bff",  # Azul
