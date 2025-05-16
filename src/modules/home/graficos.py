@@ -32,8 +32,10 @@ def grafico_custo_quantidade_mensal(
     """
 
     # Padroniza rótulos dos tipos de peça
-    mapa_tipos = {"Recondicionada": "Peça Recondicionada",
-                  "Nao Recondicionada": "Peça Nova"}
+    mapa_tipos = {
+        "Recondicionada": "Peça Recondicionada",
+        "Nao Recondicionada": "Peça Nova"
+    }
     df_custo["tipo_peca"] = df_custo["tipo_peca"].replace(mapa_tipos)
     df_quantidade["tipo_peca"] = df_quantidade["tipo_peca"].replace(mapa_tipos)
 
@@ -42,6 +44,12 @@ def grafico_custo_quantidade_mensal(
     df_quantidade["mes"] = pd.to_datetime(df_quantidade["mes"])
     df_custo["mes_fmt"] = df_custo["mes"].dt.strftime("%b %Y")
     df_quantidade["mes_fmt"] = df_quantidade["mes"].dt.strftime("%b %Y")
+
+    # Define cores fixas para cada tipo de peça
+    cores = {
+        "Peça Recondicionada": "blue",
+        "Peça Nova": "red"
+    }
 
     # Cria os dois subplots
     fig = make_subplots(
@@ -60,7 +68,8 @@ def grafico_custo_quantidade_mensal(
                 x=dados["mes_fmt"],
                 y=dados["custo_total"],
                 mode="lines+markers",
-                name=tipo
+                name=tipo,
+                line=dict(color=cores[tipo])
             ),
             row=1, col=1
         )
@@ -74,7 +83,8 @@ def grafico_custo_quantidade_mensal(
                 y=dados["quantidade_total"],
                 mode="lines+markers",
                 name=tipo,
-                showlegend=False  # evita legenda duplicada
+                showlegend=False,
+                line=dict(color=cores[tipo])
             ),
             row=1, col=2
         )
