@@ -1,0 +1,49 @@
+tbl_prontuario_veiculo = [
+    {
+        "field": "id_veiculo",
+        "headerName": "VEÍCULO",
+        "pinned": "left",
+    },
+    {"field": "modelo", "headerName": "MODELO", "minWidth": 200, "maxWidth": 200},
+    {
+        "field": "nome_peca",
+        "headerName": "PEÇAS",
+        "wrapHeaderText": True,
+        "autoHeaderHeight": True,
+    },
+    {
+        "field": "grupo",
+        "headerName": "GRUPO DE PEÇAS",
+        "wrapHeaderText": True,
+        "autoHeaderHeight": True,
+    },
+    {
+        "field": "quantidade_total",
+        "headerName": "QUANTIDADE TOTAL",
+        "wrapHeaderText": True,
+        "autoHeaderHeight": True,
+        "filter": "agNumberColumnFilter",
+        "type": ["numericColumn"],
+    },
+    {
+        "field": "valor_total",
+        "headerName": "GASTO POR TOTAL",
+        "filter": "agNumberColumnFilter",
+        "valueFormatter": {"function": "'R$' + params.value.toLocaleString('pt-BR')"},
+        "type": ["numericColumn"],
+    },
+    {
+        "field": "quantidade_trocas",
+        "headerName": "QUANTIDADE TOTAL",
+        "wrapHeaderText": True,
+        "autoHeaderHeight": True,
+        "filter": "agNumberColumnFilter",
+        "type": ["numericColumn"],
+    },
+    {
+        "field": "data_ultima_troca",
+        "headerName": "DATA DA ULTIMA TROCA",
+        "wrapHeaderText": True,
+        "autoHeaderHeight": True,
+    },
+]

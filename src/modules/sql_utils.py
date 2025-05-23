@@ -59,7 +59,7 @@ def subquery_veiculos(lista_veiculos, prefix="", termo_all="TODAS"):
 
 def subquery_equipamentos(lista_veiculos, prefix=""):
     query = ""
-    if "TODAS" not in lista_veiculos:
+    if "TODOS" not in lista_veiculos:
         query = f"""AND {prefix}"EQUIPAMENTO" IN ({', '.join([f"'{x}'" for x in lista_veiculos])})"""
     return query
 
@@ -75,6 +75,13 @@ def subquery_modelos_pecas(lista_modelos, prefix=""):
     if not lista_modelos or "TODOS" in lista_modelos:
         return ""  # Não adiciona a cláusula IN se a lista estiver vazia ou for "TODOS":
     query = f"""AND {prefix}"MODELO" IN ({', '.join([f"'{x}'" for x in lista_modelos])})"""
+    return query
+
+def subquery_grupos_pecas(lista_grupos, prefix=""):
+    #query = ""
+    if not lista_grupos or "TODOS" in lista_grupos:
+        return ""  # Não adiciona a cláusula IN se a lista estiver vazia ou for "TODOS":
+    query = f"""AND {prefix}"PRODUTO" IN ({', '.join([f"'{x}'" for x in lista_grupos])})"""
     return query
 
 def subquery_modelos_combustivel(lista_modelos, prefix=""):

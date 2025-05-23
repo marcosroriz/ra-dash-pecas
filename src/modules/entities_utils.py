@@ -94,6 +94,30 @@ def get_modelos(dbEngine):
         dbEngine,
     )
 
+def get_veiculos(dbEngine):
+    # Lista de OS
+    return pd.read_sql(
+        """
+        SELECT DISTINCT
+            "EQUIPAMENTO" AS "EQUIPAMENTO"
+        FROM 
+            pecas_gerais
+        """,
+        dbEngine,
+    )
+
+def get_grupo_pecas(dbEngine):
+    # Lista de OS
+    return pd.read_sql(
+        """
+        SELECT DISTINCT
+            "GRUPO" AS "GRUPO"
+        FROM 
+            pecas_gerais
+        """,
+        dbEngine,
+    )
+
 def gerar_excel(df):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
