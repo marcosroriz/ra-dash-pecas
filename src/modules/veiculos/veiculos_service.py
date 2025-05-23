@@ -103,6 +103,8 @@ class VeiculosService:
                         .apply(calcula_km)
                         .reset_index()
             )
+            resultado['data_ultima_troca'] = pd.to_datetime(resultado['data_ultima_troca'])
+            resultado['data_ultima_troca'] = resultado['data_ultima_troca'].apply(lambda x: x.strftime("%d/%m/%Y"))
             resultado = resultado.dropna(subset=["km_desde_penultima_troca"])
             
             return resultado
