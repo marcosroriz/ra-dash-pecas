@@ -81,6 +81,20 @@ def get_lista_os(dbEngine):
         dbEngine,
     )
 
+def get_lista_veiculos(dbEngine):
+    # Lista de OS
+    return pd.read_sql(
+        """
+        SELECT DISTINCT
+            "EQUIPAMENTO" AS "LABEL"
+        FROM 
+            pecas_gerais  
+        ORDER BY
+            "EQUIPAMENTO"
+        """,
+        dbEngine,
+    )
+
 
 def get_modelos(dbEngine):
     # Lista de OS
