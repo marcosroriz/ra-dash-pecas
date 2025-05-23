@@ -245,7 +245,7 @@ def atualiza_tabela_rank_pecas(datas, lista_modelos, lista_oficina, lista_secao,
 @callback(
     Output("download-excel-tabela-rank-pecas", "data"),
     [
-        Input("btn-exportar-tabela-rank-pecas", "n_clicks"),
+        Input("btn-exportar-tipo-os", "n_clicks"),
         Input("input-intervalo-datas-geral", "value"),
         Input("input-select-modelo-veiculos-visao-geral", "value"),
         Input("input-select-oficina-visao-geral", "value"),
@@ -687,7 +687,7 @@ layout = dbc.Container(
                                             [
                                                 html.Button(
                                                     "Exportar para Excel",
-                                                    id="btn-exportar-tabela-principais-pecas",
+                                                    id="btn-exportar-tabela-rank-pecas",
                                                     n_clicks=0,
                                                     style={
                                                         "background-color": "#007bff",  # Azul
