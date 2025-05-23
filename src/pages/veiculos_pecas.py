@@ -178,8 +178,8 @@ def corrige_input_pecas(datas, lista_modelos, veiculo):
 
 @callback(
     [
-        # Output("loading-overlay-visao-geral", "visible"),
-        Output("tabela-principais-pecas", "rowData"),
+        Output("loading-overlay-guia-pecas-veiculos", "visible"),
+        Output("tabela-veiculos-pecas", "rowData"),
     ],
     [
         Input("input-intervalo-datas-veiculos", "value"),
@@ -187,12 +187,12 @@ def corrige_input_pecas(datas, lista_modelos, veiculo):
 
     ],
 )
-def atualiza_tabela_rank_pecas(datas, veiculo):
+def atualiza_tabela_pecas(datas, veiculo):
 
     # Obtem dados
     df = veiculo_service.get_table_pecas(datas, veiculo)
 
-    return [df.to_dict("records")] 
+    return False, df.to_dict("records")
 
 # Callback para atualizar o link de download quando o botão for clicado
 @callback(
@@ -271,22 +271,22 @@ def gera_labels_inputs(campo):
 layout = dbc.Container(
     [
         # Loading
-        # dmc.LoadingOverlay(
-        #     visible=True,
-        #     id="loading-overlay-guia-geral",
-        #     loaderProps={"size": "xl"},
-        #     overlayProps={
-        #         "radius": "lg",
-        #         "blur": 2,
-        #         "style": {
-        #             "top": 0,  # Start from the top of the viewport
-        #             "left": 0,  # Start from the left of the viewport
-        #             "width": "100vw",  # Cover the entire width of the viewport
-        #             "height": "100vh",  # Cover the entire height of the viewport
-        #         },
-        #     },
-        #     zIndex=10,
-        # ),
+        dmc.LoadingOverlay(
+            visible=True,
+            id="loading-overlay-guia-pecas-veiculos",
+            loaderProps={"size": "xl"},
+            overlayProps={
+                "radius": "lg",
+                "blur": 2,
+                "style": {
+                    "top": 0,  # Start from the top of the viewport
+                    "left": 0,  # Start from the left of the viewport
+                    "width": "100vw",  # Cover the entire width of the viewport
+                    "height": "100vh",  # Cover the entire height of the viewport
+                },
+            },
+            zIndex=10,
+        ),
         # Cabeçalho
         dbc.Row(
             [
@@ -408,7 +408,7 @@ layout = dbc.Container(
                             dmc.Space(h=5),
                             dbc.Row(
                                 [
-                                    dbc.Col(gera_labels_inputs("visao-geral-tabela-principais-pecas"), width=True),
+                                    dbc.Col(gera_labels_inputs("veiculos-pecas-labes"), width=True),
                                     dbc.Col(
                                         html.Div(
                                             [
@@ -446,7 +446,7 @@ layout = dbc.Container(
         ),
         dmc.Space(h=20),
         dag.AgGrid(
-            id="tabela-principais-pecas",
+            id="tabela-veiculos-pecas",
             columnDefs= tbl_veiculos_pecas,
             rowData=[],
             defaultColDef={

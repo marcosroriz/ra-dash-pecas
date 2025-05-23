@@ -195,6 +195,7 @@ def corrige_input_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_
 ##############################################################################
 
 @callback(
+    Output("loading-overlay-guia-pecas-os", "visible"),
     Output("graph-pecas-mais-trocadas", "figure"),
     [
         Input("input-intervalo-datas-pecas-os", "value"),
@@ -213,7 +214,7 @@ def plota_grafico_barra_pecas_trocadas(datas, lista_modelos, lista_oficina, list
     df = os_service.get_pecas_trocadas_por_os(datas, lista_modelos, lista_oficina, lista_secao, lista_os)
     # Gera o gráfico
     fig = grafico_pecas_mais_trocadas(df)
-    return fig
+    return False ,fig
 
 ##############################################################################
 ### Callbacks para os labels #################################################
@@ -282,22 +283,22 @@ def gera_labels_inputs(campo):
 layout = dbc.Container(
     [
         # Loading
-        # dmc.LoadingOverlay(
-        #     visible=True,
-        #     id="loading-overlay-guia-geral",
-        #     loaderProps={"size": "xl"},
-        #     overlayProps={
-        #         "radius": "lg",
-        #         "blur": 2,
-        #         "style": {
-        #             "top": 0,  # Start from the top of the viewport
-        #             "left": 0,  # Start from the left of the viewport
-        #             "width": "100vw",  # Cover the entire width of the viewport
-        #             "height": "100vh",  # Cover the entire height of the viewport
-        #         },
-        #     },
-        #     zIndex=10,
-        # ),
+        dmc.LoadingOverlay(
+            visible=True,
+            id="loading-overlay-guia-pecas-os",
+            loaderProps={"size": "xl"},
+            overlayProps={
+                "radius": "lg",
+                "blur": 2,
+                "style": {
+                    "top": 0,  # Start from the top of the viewport
+                    "left": 0,  # Start from the left of the viewport
+                    "width": "100vw",  # Cover the entire width of the viewport
+                    "height": "100vh",  # Cover the entire height of the viewport
+                },
+            },
+            zIndex=10,
+        ),
         # Cabeçalho
         dbc.Row(
             [
