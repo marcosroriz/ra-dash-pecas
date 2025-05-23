@@ -81,7 +81,7 @@ def subquery_grupos_pecas(lista_grupos, prefix=""):
     #query = ""
     if not lista_grupos or "TODOS" in lista_grupos:
         return ""  # Não adiciona a cláusula IN se a lista estiver vazia ou for "TODOS":
-    query = f"""AND {prefix}"PRODUTO" IN ({', '.join([f"'{x}'" for x in lista_grupos])})"""
+    query = f"""AND {prefix}"GRUPO" IN ({', '.join([f"'{x}'" for x in lista_grupos])})"""
     return query
 
 def subquery_modelos_combustivel(lista_modelos, prefix=""):
