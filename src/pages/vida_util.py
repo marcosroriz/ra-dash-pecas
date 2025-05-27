@@ -133,13 +133,6 @@ def corrige_input_modelos(lista_modelos):
     return corrige_input(lista_modelos, "TODOS")
 
 
-@callback(
-    Output("input-select-oficina-pecas-vida-util", "value"),
-    Input("input-select-oficina-pecas-vida-util", "value"),
-)
-def corrige_input_oficina(lista_oficinas):
-    return corrige_input(lista_oficinas)
-
 
 @callback(
     [
@@ -149,43 +142,46 @@ def corrige_input_oficina(lista_oficinas):
     [
         Input("input-intervalo-datas-pecas-os", "value"),
         Input("input-select-modelo-veiculos-pecas-vida-util", "value"),
-        Input("input-select-oficina-pecas-vida-util", "value"),
-        Input("input-select-peca-vida-util", "value"),
+        Input("input-select-peca-vida-util", "value"),  # <- Aqui está o segredo
     ]
 )
-def corrige_input_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_os):
+def corrige_input_pecas(datas, lista_modelos, lista_pecas):
     """
     Atualiza as opções e o valor selecionado do dropdown de peças com base nos filtros aplicados.
 
     Parâmetros:
         datas (str | list): Intervalo de datas selecionado.
         lista_modelos (list): Lista de modelos de veículos selecionados.
-        lista_oficina (list): Lista de oficinas selecionadas.
-        lista_secao (list): Lista de seções selecionadas.
-        lista_pecas (list): Lista atual de peças selecionadas.
 
     Retorna:
         tuple:
             - options (list[dict]): Lista de opções para o dropdown no formato {"label": ..., "value": ...}.
             - value (list): Lista de valores corrigida para manter a seleção válida com base nos filtros.
     """
-    df_lista_os_secao = df_lista_os
+    if not datas or not lista_modelos:
+        return [], None
 
-    if "TODAS" not in lista_secao:
-        df_lista_os_secao = os_service.get_os(datas, lista_modelos, lista_oficina, lista_secao)
+    lista_pecas_ficticias = [
+        {"PECA": "Pastilha de Freio"},
+        {"PECA": "Disco de Freio"},
+        {"PECA": "Filtro de Óleo"},
+        {"PECA": "Amortecedor"},
+        {"PECA": "Correia Dentada"},
+    ]
+    lista_pecas_ficticias.insert(0, {"PECA": "TODAS"})
 
-    lista_os_possiveis = df_lista_os_secao.to_dict(orient="records")
-    lista_os_possiveis.insert(0, {"LABEL": "TODAS"})
+    lista_options = [{"label": p["PECA"], "value": p["PECA"]} for p in lista_pecas_ficticias]
 
-    lista_options = [{"label": os["LABEL"], "value": os["LABEL"]} for os in lista_os_possiveis]
+    def corrige_input(lista, termo_all="TODAS"):
+        if not lista:
+            return [termo_all]
+        if len(lista) > 1 and termo_all in lista:
+            return [item for item in lista if item != termo_all]
+        return lista
 
-    if lista_os and "TODAS" not in lista_os:
-        df_lista_os_atual = df_lista_os_secao[df_lista_os_secao["LABEL"].isin(lista_os)]
-        lista_os_corrigida = df_lista_os_atual["LABEL"].tolist()
-    else:
-        lista_os_corrigida = lista_os
+    lista_corrigida = corrige_input(lista_pecas)
 
-    return lista_options, corrige_input(lista_os_corrigida)
+    return lista_options, lista_corrigida
 
 
 
@@ -199,17 +195,16 @@ def corrige_input_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_
     [
         Input("input-intervalo-datas-pecas-os", "value"),
         Input("input-select-modelo-veiculos-pecas-vida-util", "value"),
-        Input("input-select-oficina-pecas-vida-util", "value"),
         Input("input-select-peca-vida-util", "value"),
     ],
 )
-def plota_grafico_barra_pecas_trocadas(datas, lista_modelos, lista_oficina, lista_secao, lista_os):
+def plota_grafico_barra_pecas_trocadas(datas, lista_modelos, lista_secao, lista_os):
     # Valida input
-    if not input_valido(datas, lista_modelos, lista_oficina, lista_secao, lista_os):
+    if not input_valido(datas, lista_modelos, lista_secao, lista_os):
         return go.Figure()
 
     # Obtem os dados
-    df = os_service.get_pecas_trocadas_por_os(datas, lista_modelos, lista_oficina, lista_secao, lista_os)
+    df = os_service.get_pecas_trocadas_por_os(datas, lista_modelos, lista_secao, lista_os)
     # Gera o gráfico
     fig = grafico_pecas_mais_trocadas(df)
     return fig
@@ -228,11 +223,10 @@ def gera_labels_inputs(campo):
         [
             Input("input-intervalo-datas-pecas-os", "value"),
             Input("input-select-modelo-veiculos-pecas-vida-util", "value"),
-            Input("input-select-oficina-pecas-vida-util", "value"),
             Input("input-select-peca-vida-util", "value"),
         ],
     )
-    def atualiza_labels_inputs(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
+    def atualiza_labels_inputs(datas, lista_modelos, lista_pecas):
         labels_antes = [
             # DashIconify(icon="material-symbols:filter-arrow-right", width=20),
             dmc.Badge("Filtro", color="gray", variant="outline"),
@@ -245,7 +239,8 @@ def gera_labels_inputs(campo):
             data_fim_str = pd.to_datetime(datas[1]).strftime("%d/%m/%Y")
 
             datas_label = [dmc.Badge(f"{data_inicio_str} a {data_fim_str}", variant="outline")]
-
+        lista_oficina = 'TODAS'
+        lista_secao = 'TODAS'
         lista_oficinas_labels = []
         lista_secaos_labels = []
         lista_os_labels = []
