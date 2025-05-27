@@ -39,24 +39,64 @@ class VidaUtilService:
             data_inicio = pd.to_datetime(datas[0]).strftime("%d/%m/%Y")
             data_fim = pd.to_datetime(datas[1]).strftime("%d/%m/%Y")
             
-            lista_secoes = "TODAS"
-            lista_oficinas = "TODAS"
             # Gera subqueries SQL a partir das listas de filtros
-            subquery_secoes_str = subquery_secoes(lista_secoes)
-            subquery_modelo_str = subquery_modelos(lista_modelos)
-            subquery_ofcina_str = subquery_oficinas(lista_oficinas)
+            subquery_modelo_str = subquery_modelos_peças(lista_modelos, prefix="DF.")
 
             # Monta a query final com os filtros aplicados
             query = f"""
-                SELECT DISTINCT 
-                    "DESCRICAO DO SERVICO" as "LABEL"
-                FROM os_dados 
-                LEFT JOIN pecas_gerais ON "NUMERO DA OS" = "OS"
-                WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'
-                {subquery_secoes_str}
+            select nome_pecas, 
+                Count(nome_pecas) as quantidade
+            from (
+            --
+            --
+            --
+            --QUERY ORIGINAL
+            SELECT 
+                trocas.*,
+                ROW_NUMBER() OVER (
+                    PARTITION BY id_veiculo, nome_pecas
+                    ORDER BY data_os
+                ) AS numero_troca,
+                va."Model"
+            FROM (
+                SELECT 
+                    id_veiculo,
+                    nome_pecas,
+                    data_os,
+                    ultimo_hodometro,
+                    LEAD(ultimo_hodometro) OVER (
+                        PARTITION BY id_veiculo, nome_pecas
+                        ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
+                    ) AS km_proxima_troca,
+                    LEAD(ultimo_hodometro) OVER (
+                        PARTITION BY id_veiculo, nome_pecas
+                        ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
+                    ) - ultimo_hodometro AS duracao_km,
+                    LEAD(TO_DATE(data_os, 'YYYY-MM-DD')) OVER (
+                        PARTITION BY id_veiculo, nome_pecas
+                        ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
+                    ) AS data_proxima_troca,
+                    -- Subtração convertida corretamente
+                    LEAD(TO_DATE(data_os, 'YYYY-MM-DD')) OVER (
+                        PARTITION BY id_veiculo, nome_pecas
+                        ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
+                    ) - TO_DATE(data_os, 'YYYY-MM-DD') AS duracao_dias
+                FROM
+                    view_os_pecas_hodometro as vph
+            ) AS trocas
+            LEFT JOIN veiculos_api va
+                ON "Description" = id_veiculo
+            WHERE duracao_km IS NOT NULL
+            ORDER BY
+                nome_pecas, id_veiculo, TO_DATE(data_os, 'YYYY-MM-DD')
+            ---
+            --
+            --
+            ) as DF
+            where DF.data_os BETWEEN '{data_inicio}' AND '{data_fim}'
                 {subquery_modelo_str}
-                {subquery_ofcina_str}
-                ORDER BY "DESCRICAO DO SERVICO";
+            group by 
+                nome_pecas
             """
 
             # Executa a consulta e retorna os dados como DataFrame

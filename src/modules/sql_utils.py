@@ -48,6 +48,12 @@ def subquery_modelos(lista_modelos, prefix="", termo_all="TODOS"):
 
     return query
 
+def subquery_modelos_peças(lista_modelos, prefix="", termo_all="TODOS"):
+    query = ""
+    if termo_all not in lista_modelos:
+        query = f"""AND {prefix}"Model" IN ({', '.join([f"'{x}'" for x in lista_modelos])})"""
+
+    return query
 
 def subquery_veiculos(lista_veiculos, prefix="", termo_all="TODAS"):
     query = ""

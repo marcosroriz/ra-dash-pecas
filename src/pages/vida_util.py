@@ -35,7 +35,7 @@ from db import PostgresSingleton
 from modules.entities_utils import *
 # Imports específicos
 from modules.os.graficos import *
-from modules.os.os_service import ServiceOS
+from modules.vidautil.vida_util_service import VidaUtilService
 import modules.vidautil.tabelas as vida_util
 
 ##############################################################################
@@ -46,36 +46,12 @@ pgDB = PostgresSingleton.get_instance()
 pgEngine = pgDB.get_engine()
 
 # Cria o serviço
-os_service = ServiceOS(pgEngine)
+vida_util_service = VidaUtilService(pgEngine)
 
 # Modelos de veículos
 df_modelos_veiculos = get_modelos(pgEngine)
 lista_todos_modelos_veiculos = df_modelos_veiculos.to_dict(orient="records")
 lista_todos_modelos_veiculos.insert(0, {"MODELO": "TODOS"})
-
-# Obtem a lista de Oficinas
-df_oficinas = get_oficinas(pgEngine)
-lista_todas_oficinas = df_oficinas.to_dict(orient="records")
-lista_todas_oficinas.insert(0, {"LABEL": "TODAS"})
-
-# Obtem a lista de Seções
-df_secoes = get_secoes(pgEngine)
-lista_todas_secoes = df_secoes.to_dict(orient="records")
-lista_todas_secoes.insert(0, {"LABEL": "TODAS"})
-
-# Colaboradores / Mecânicos
-df_mecanicos = get_mecanicos(pgEngine)
-
-# Obtem a lista de OS
-df_lista_pecas = get_pecas(pgEngine)
-lista_todas_pecas = df_lista_pecas.to_dict(orient="records")
-lista_todas_pecas.insert(0, {"LABEL": "TODAS"})
-
-# Obtem a lista de OS
-df_lista_os = get_lista_os(pgEngine)
-lista_todas_os = df_lista_os.to_dict(orient="records")
-lista_todas_os.insert(0, {"LABEL": "TODAS"})
-
 
 
 ##############################################################################
@@ -152,25 +128,33 @@ def corrige_input_pecas(datas, lista_modelos, lista_pecas):
     Parâmetros:
         datas (str | list): Intervalo de datas selecionado.
         lista_modelos (list): Lista de modelos de veículos selecionados.
+        lista_pecas (list): Lista de peças selecionadas atualmente.
 
     Retorna:
         tuple:
             - options (list[dict]): Lista de opções para o dropdown no formato {"label": ..., "value": ...}.
             - value (list): Lista de valores corrigida para manter a seleção válida com base nos filtros.
     """
+
     if not datas or not lista_modelos:
         return [], None
 
-    lista_pecas_ficticias = [
-        {"PECA": "Pastilha de Freio"},
-        {"PECA": "Disco de Freio"},
-        {"PECA": "Filtro de Óleo"},
-        {"PECA": "Amortecedor"},
-        {"PECA": "Correia Dentada"},
-    ]
-    lista_pecas_ficticias.insert(0, {"PECA": "TODAS"})
+    df_pecas = vida_util_service.get_pecas(datas, lista_modelos)
 
-    lista_options = [{"label": p["PECA"], "value": p["PECA"]} for p in lista_pecas_ficticias]
+    if df_pecas.empty:
+        return [], None
+
+    # Ordena pelo campo quantidade desc (maior quantidade primeiro)
+    df_pecas = df_pecas.sort_values(by="quantidade", ascending=False)
+
+    # Monta opções com quantidade no label
+    lista_options = [
+        {"label": f"{row['nome_pecas']} ({row['quantidade']})", "value": row["nome_pecas"]}
+        for _, row in df_pecas.iterrows()
+    ]
+
+    # Insere "TODAS" no topo
+    lista_options.insert(0, {"label": "TODAS", "value": "TODAS"})
 
     def corrige_input(lista, termo_all="TODAS"):
         if not lista:
@@ -191,23 +175,23 @@ def corrige_input_pecas(datas, lista_modelos, lista_pecas):
 ##############################################################################
 
 @callback(
-    Output("tabela-vida-util-pecas", "figure"),
+    Output("boxplot-vida-util-pecas", "figure"),
     [
         Input("input-intervalo-datas-pecas-os", "value"),
         Input("input-select-modelo-veiculos-pecas-vida-util", "value"),
         Input("input-select-peca-vida-util", "value"),
     ],
 )
-def plota_grafico_barra_pecas_trocadas(datas, lista_modelos, lista_secao, lista_os):
+def plota_grafico_barra_pecas_trocadas(datas, lista_modelos, lista_os):
     # Valida input
-    if not input_valido(datas, lista_modelos, lista_secao, lista_os):
+    if not input_valido(datas, lista_modelos, lista_os):
         return go.Figure()
 
     # Obtem os dados
-    df = os_service.get_pecas_trocadas_por_os(datas, lista_modelos, lista_secao, lista_os)
+    #df = os_service.get_pecas_trocadas_por_os(datas, lista_modelos, lista_secao, lista_os)
     # Gera o gráfico
-    fig = grafico_pecas_mais_trocadas(df)
-    return fig
+    #fig = grafico_pecas_mais_trocadas(df)
+    return None
 
 ##############################################################################
 ### Callbacks para os labels #################################################
@@ -377,9 +361,9 @@ layout = dbc.Container(
                                                     dbc.Label("Peça epecífica"),
                                                     dcc.Dropdown(
                                                         id="input-select-peca-vida-util",
-                                                        options=[{"label": os["LABEL"], "value": os["LABEL"]} for os in lista_todas_os],
+                                                        options=[],  # começa vazio, o callback vai preencher
                                                         multi=True,
-                                                        value=["TODAS"],
+                                                        value=[],    # começa vazio, o callback define o valor inicial
                                                         placeholder="Selecione uma ou mais peças específicas...",
                                                     ),
                                                 ],
