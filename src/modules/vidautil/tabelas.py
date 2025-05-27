@@ -1,15 +1,44 @@
 tbl_vida_util_pecas = [
     {
-        "field": "nome_peca",
+        "field": "nome_pecas",
         "headerName": "NOME DA PEÇA",
         "pinned": "left",
-        "minWidth": 200,
+        "minWidth": 400,
         "type": ["numericColumn"],
     },
-    {"field": "data_ultima_troca", "headerName": "DATA ÚLTIMA TROCA", "pinned": "left", "minWidth": 450},
     {
-        "field": "km_ultima_troca",
-        "headerName": "KM DA ULTIMA TROCA",
+        "field": "id_veiculo",
+        "headerName": "VEICULO",
+        "pinned": "left",
+        "minWidth": 100,
+        "type": ["numericColumn"],
+    },
+    {
+    "field": "numero_troca",
+        "headerName": "N° TROCA",
+        "pinned": "left",
+        "minWidth": 25,
+        "type": ["numericColumn"],
+    },
+    {"field": "data_os",  
+     "headerName": "DATA TROCA",
+     "minWidth": 450
+     },
+    {
+     "field": "data_proxima_troca", 
+     "headerName": "DATA SEGUNDA TROCA", 
+     "minWidth": 450
+    },
+    {
+        "field": "duracao_dias",
+        "headerName": "DURAÇÃO (DIAS)",
+        "filter": "agNumberColumnFilter",
+        "maxWidth": 200,
+        "type": ["numericColumn"],
+    },
+    {
+        "field": "ultimo_hodometro",
+        "headerName": "KM DA TROCA",
         "wrapHeaderText": True,
         "autoHeaderHeight": True,
         "maxWidth": 200,
@@ -17,28 +46,17 @@ tbl_vida_util_pecas = [
         "type": ["numericColumn"],
     },
     {
-        "field": "os_ultima_troca",
-        "headerName": "OS ÚLTIMA TROCA",
+        "field": "km_proxima_troca",
+        "headerName": "KM DA SEGUNDA TROCA",
         "filter": "agNumberColumnFilter",
         "maxWidth": 200,
         "type": ["numericColumn"],
     },
     {
-        "field": "valor_total",
-        "headerName": "VALOR TOTAL",
+        "field": "duracao_km",
+        "headerName": "DURAÇÃO KM",
         "filter": "agNumberColumnFilter",
         "maxWidth": 200,
-        "valueFormatter": {"function": "'R$' + params.value.toLocaleString('pt-BR')"},
         "type": ["numericColumn"],
-    },
-    {
-        "field": "valor_por_unidade",
-        "headerName": "VALOR POR UNIDADE",
-        "wrapHeaderText": True,
-        "autoHeaderHeight": True,
-        "filter": "agNumberColumnFilter",
-        "valueFormatter": {"function": "'R$' + params.value.toLocaleString('pt-BR')"},
-        "maxWidth": 200,
-        "type": ["numericColumn"],
-    },
-]
+    }
+] 

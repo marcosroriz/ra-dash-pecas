@@ -82,6 +82,19 @@ def input_valido(datas, lista_modelos, lista_oficinas, lista_secaos, lista_os):
 
     return True
 
+# Função para validar o input
+def input_valido2(datas, lista_modelos, lista_pecas):
+    if datas is None or not datas or None in datas:
+        return False
+
+    if lista_modelos is None or not lista_modelos or None in lista_modelos:
+        return False
+
+    if lista_pecas is None or not lista_pecas or None in lista_pecas:
+        return False
+
+
+    return True
 
 # Corrige o input para garantir que o termo para todas ("TODAS") não seja selecionado junto com outras opções
 def corrige_input(lista, termo_all="TODAS"):
@@ -99,6 +112,17 @@ def corrige_input(lista, termo_all="TODAS"):
 
     # Por fim, se não caiu em nenhum caso, retorna o valor original
     return lista
+
+####FUNCAO DE AUXILIO
+def remover_outliers_iqr(df, coluna):
+    """
+    Remove outliers com base no método do intervalo interquartil (IQR).
+    """
+    q1 = df[coluna].quantile(0.25)
+    q3 = df[coluna].quantile(0.75)
+    iqr = q3 - q1
+    filtro = (df[coluna] >= (q1 - 1.5 * iqr)) & (df[coluna] <= (q3 + 1.5 * iqr))
+    return df[filtro]
 
 
 @callback(
@@ -139,7 +163,7 @@ def corrige_input_pecas(datas, lista_modelos, lista_pecas):
     if not datas or not lista_modelos:
         return [], None
 
-    df_pecas = vida_util_service.get_pecas(datas, lista_modelos)
+    df_pecas = vida_util_service.get_pecas_input(datas, lista_modelos)
 
     if df_pecas.empty:
         return [], None
@@ -149,21 +173,28 @@ def corrige_input_pecas(datas, lista_modelos, lista_pecas):
 
     # Monta opções com quantidade no label
     lista_options = [
-        {"label": f"{row['nome_pecas']} ({row['quantidade']})", "value": row["nome_pecas"]}
+        {"label": f"{row['nome_pecas']} ({row['quantidade']})", "value": row['nome_pecas']}
         for _, row in df_pecas.iterrows()
     ]
 
     # Insere "TODAS" no topo
     lista_options.insert(0, {"label": "TODAS", "value": "TODAS"})
 
-    def corrige_input(lista, termo_all="TODAS"):
-        if not lista:
-            return [termo_all]
+    # Define valor padrão como o segundo item da lista (índice 1) ou "TODAS" se não existir
+    default_valor = lista_options[1]['value'] if len(lista_options) > 1 else 'TODAS'
+
+    def corrige_input(lista, termo_all="TODAS", default=None):
+        # Aplica valor padrão apenas quando não houver lista definida (None)
+        if lista is None:
+            return [default]
+        # Se houver múltiplos incluindo "TODAS", remove "TODAS"
         if len(lista) > 1 and termo_all in lista:
             return [item for item in lista if item != termo_all]
+        # Retorna a própria lista (podendo ser apenas ["TODAS"])
         return lista
 
-    lista_corrigida = corrige_input(lista_pecas)
+    # Corrige lista de peças com base na seleção do usuário
+    lista_corrigida = corrige_input(lista_pecas, termo_all="TODAS", default=default_valor)
 
     return lista_options, lista_corrigida
 
@@ -174,24 +205,42 @@ def corrige_input_pecas(datas, lista_modelos, lista_pecas):
 # Callbacks para os gráficos #################################################
 ##############################################################################
 
+
 @callback(
     Output("boxplot-vida-util-pecas", "figure"),
+    Output("tabela-vida-util-pecas", "rowData"),
     [
         Input("input-intervalo-datas-pecas-os", "value"),
         Input("input-select-modelo-veiculos-pecas-vida-util", "value"),
         Input("input-select-peca-vida-util", "value"),
     ],
 )
-def plota_grafico_barra_pecas_trocadas(datas, lista_modelos, lista_os):
-    # Valida input
-    if not input_valido(datas, lista_modelos, lista_os):
-        return go.Figure()
+def grafico_e_df_boxplot_pecas(datas, lista_modelos, lista_pecas):
+    if not datas or not lista_modelos or not lista_pecas:
+        return go.Figure(), []
 
-    # Obtem os dados
-    #df = os_service.get_pecas_trocadas_por_os(datas, lista_modelos, lista_secao, lista_os)
-    # Gera o gráfico
-    #fig = grafico_pecas_mais_trocadas(df)
-    return None
+    df = vida_util_service.get_pecas(datas, lista_modelos, lista_pecas)
+
+    if df.empty or "duracao_km" not in df.columns:
+        return go.Figure(), []
+
+    # Remove outliers
+    df = remover_outliers_iqr(df, "duracao_km")
+    df["duracao_km"] = df["duracao_km"].round(1)
+
+    if "TODAS" in lista_pecas:
+        fig = px.box(df, y="duracao_km", title="Boxplot Geral da Duração (km)")
+    else:
+        fig = px.box(df, x="nome_pecas", y="duracao_km", title="Boxplot por Peça")
+
+    fig.update_layout(
+        xaxis_title="Peça" if "TODAS" not in lista_pecas else "",
+        yaxis_title="Duração (km)",
+        boxmode="group",
+        template="plotly_white"
+    )
+
+    return fig, df.to_dict('records')
 
 ##############################################################################
 ### Callbacks para os labels #################################################
@@ -251,6 +300,45 @@ def gera_labels_inputs(campo):
 
     # Cria o componente
     return dmc.Group(id=f"{campo}-labels", children=[])
+
+##############################################################################
+### Callbacks para os dowload #################################################
+##############################################################################
+
+@callback(
+    Output("download-excel-tabela-vida-util-pecas", "data"),
+    Input("btn-exportar-tabela-vida-util-pecas", "n_clicks"),
+    State("input-intervalo-datas-pecas-os", "value"),
+    State("input-select-modelo-veiculos-pecas-vida-util", "value"),
+    State("input-select-peca-vida-util", "value"),
+    prevent_initial_call=True
+)
+def download_excel_tabela_vida_util_pecas(n_clicks, datas, lista_modelos, lista_pecas):
+    if not n_clicks or n_clicks <= 0:
+        return dash.no_update
+
+    date_now = date.today().strftime('%d-%m-%Y')
+
+    df = vida_util_service.get_pecas(datas, lista_modelos, lista_pecas)
+    df = remover_outliers_iqr(df, "duracao_km")
+    df["duracao_km"] = df["duracao_km"].round(1)
+
+    df.rename(columns={
+    "nome_pecas": "NOME DA PEÇA",
+    "id_veiculo": "VEICULO",
+    "numero_troca": "N° TROCA",
+    "data_os": "DATA TROCA",
+    "data_proxima_troca": "DATA SEGUNDA TROCA",
+    "duracao_dias": "DURAÇÃO (DIAS)",
+    "ultimo_hodometro": "KM DA TROCA",
+    "km_proxima_troca": "KM DA SEGUNDA TROCA",
+    "duracao_km": "DURAÇÃO KM",
+    "Model": "MODELO VEICULO"
+    }, inplace=True)
+    
+    excel_data = gerar_excel(df=df)
+    return dcc.send_bytes(excel_data, f"tabela_vida_util_pecas_{date_now}.xlsx")
+
 
 
 ##############################################################################
@@ -358,7 +446,7 @@ layout = dbc.Container(
                                         [
                                             html.Div(
                                                 [
-                                                    dbc.Label("Peça epecífica"),
+                                                    dbc.Label("Peça específica"),
                                                     dcc.Dropdown(
                                                         id="input-select-peca-vida-util",
                                                         options=[],  # começa vazio, o callback vai preencher
@@ -382,7 +470,7 @@ layout = dbc.Container(
                                             dbc.Row(
                                                 [
                                                     html.H4(
-                                                        "Box Exploit vida útil das peças",
+                                                        "Boxplot vida útil das peças",
                                                         className="align-self-center",
                                                     ),
                                                     dmc.Space(h=5),
@@ -394,12 +482,12 @@ layout = dbc.Container(
                                     ],
                                     align="center",
                                 ),
-                                dcc.Graph(id="graph-vida-util-das-pecas"),
+                                dcc.Graph(id="boxplot-vida-util-pecas"),
                                 dmc.Space(h=40),
                                 # Tabela com as estatísticas gerais de Retrabalho
                                 dbc.Row(
                                     [
-                                        dbc.Col(DashIconify(icon="mdi:trophy", width=45), width="auto"),
+                                        dbc.Col(DashIconify(icon="mdi:gear", width=45), width="auto"),
                                         dbc.Col(
                                             dbc.Row(
                                                 [
@@ -416,7 +504,7 @@ layout = dbc.Container(
                                                                     [
                                                                         html.Button(
                                                                             "Exportar para Excel",
-                                                                            id="btn-exportar-tipo-os",
+                                                                            id="btn-exportar-tabela-vida-util-pecas",
                                                                             n_clicks=0,
                                                                             style={
                                                                                 "background-color": "#007bff",  # Azul
@@ -429,7 +517,7 @@ layout = dbc.Container(
                                                                                 "font-weight": "bold",
                                                                             },
                                                                         ),
-                                                                        dcc.Download(id="download-excel-tabela-rank-pecas"),
+                                                                        dcc.Download(id="download-excel-tabela-vida-util-pecas"),
                                                                     ],
                                                                     style={"text-align": "right"},
                                                                 ),
@@ -449,7 +537,7 @@ layout = dbc.Container(
                                 dmc.Space(h=20),
                                     dag.AgGrid(
                                     # enableEnterpriseModules=True,
-                                        id="tabela-ranking-de-pecas-mais-caras",
+                                        id="tabela-vida-util-pecas",
                                         columnDefs=vida_util.tbl_vida_util_pecas,
                                         rowData=[],
                                         defaultColDef={"filter": True, "floatingFilter": True},
