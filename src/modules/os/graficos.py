@@ -6,7 +6,7 @@ def grafico_pecas_mais_trocadas(dataframe: pd.DataFrame, titulo: str = "Peças M
     Gera um gráfico de barras horizontal interativo com as peças mais trocadas.
 
     Args:
-        dataframe (pd.DataFrame): DataFrame com colunas 'Peça' e 'Quantidade'.
+        dataframe (pd.DataFrame): DataFrame com colunas 'pecas', 'total_trocas', 'percentual'.
         titulo (str): Título do gráfico.
 
     Returns:
@@ -20,15 +20,16 @@ def grafico_pecas_mais_trocadas(dataframe: pd.DataFrame, titulo: str = "Peças M
         y=df["pecas"],
         x=df["percentual"],
         orientation='h',
-        text=[f"{v:.0f}%" for v in df["percentual"]],
+        text=[f"{p:.0f}% ({q})" for p, q in zip(df["percentual"], df["total_trocas"])],
         textposition="inside",
-        insidetextanchor="middle",
+        insidetextanchor="start",
         marker=dict(
             color=df["percentual"],
-            colorscale="Bluered",  # Pode ser personalizado
+            colorscale="Bluered",
             line=dict(width=0)
         ),
-        hovertemplate="%{y}<br>%{x:.1f}%" + "<extra></extra>",
+        hovertemplate="%{y}<br>%{x:.1f}%<br>Qtd: %{customdata}" + "<extra></extra>",
+        customdata=df["total_trocas"]
     ))
 
     fig.update_layout(
@@ -38,8 +39,7 @@ def grafico_pecas_mais_trocadas(dataframe: pd.DataFrame, titulo: str = "Peças M
             showgrid=False,
             zeroline=False,
             range=[0, 100],
-            title="Percentual (%)",  # só troque o título
-
+            title="Percentual (%)",
         ),
         yaxis=dict(
             showgrid=False,
