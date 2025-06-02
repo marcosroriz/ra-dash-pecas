@@ -103,26 +103,67 @@ class ProntuarioService:
                 
 
             query = f"""
+            WITH pecas_resumo AS (
+                SELECT 
+                    "EQUIPAMENTO" AS id_veiculo,
+                    "PRODUTO" AS nome_peca,
+                    "MODELO" AS modelo,
+                    "GRUPO" AS grupo,
+                    max("OS") as numero_ultima_OS,
+                    SUM("QUANTIDADE") AS quantidade_total,
+                    SUM("VALOR") AS valor_total,
+                    COUNT(*) AS quantidade_trocas,
+                    MAX(TO_DATE("DATA", 'DD/MM/YYYY')) AS data_ultima_troca
+                FROM 
+                    pecas_gerais
+                WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'
+                    {subquery_modelo_str}
+                    {subquery_equipamentos_str}
+                    {subquery_grupos_str}
+                    {subquery_pecas_str}
+                GROUP BY 
+                    "EQUIPAMENTO", "PRODUTO", "MODELO", "GRUPO"
+            ),
+            veiculo_asset AS (
+                SELECT 
+                    v."Description" AS id_veiculo,
+                    v."AssetId"
+                FROM 
+                    public.veiculos_api v
+            ),
+            odometro_atual AS (
+                SELECT DISTINCT ON (t."AssetId")
+                    t."AssetId",
+                    t."EndOdometerKilometers" AS odometro_atual,
+                    t."TripEnd" AS data_ultima_viagem
+                FROM 
+                    public.trips_api t
+                ORDER BY 
+                    t."AssetId", t."TripEnd" DESC
+            )
             SELECT 
-                "EQUIPAMENTO" AS id_veiculo,
-                "PRODUTO" AS nome_peca,
-                "MODELO" AS modelo,
-                "GRUPO" AS grupo,
-                SUM("QUANTIDADE") AS quantidade_total,
-                SUM("VALOR") AS valor_total,
-                COUNT(*) AS quantidade_trocas,
-                MAX(TO_DATE("DATA", 'DD/MM/YYYY')) AS data_ultima_troca
+                pr.*,
+                (oa.odometro_atual - ot.odometro_na_troca) AS km_peça
             FROM 
-                pecas_gerais
-            WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'
-                {subquery_modelo_str}
-                {subquery_equipamentos_str}
-                {subquery_grupos_str}
-                {subquery_pecas_str}
-            GROUP BY 
-                "EQUIPAMENTO", "PRODUTO", "MODELO", "GRUPO"
+                pecas_resumo pr
+            JOIN 
+                veiculo_asset va ON pr.id_veiculo = va.id_veiculo
+            LEFT JOIN LATERAL (
+                SELECT 
+                    t."EndOdometerKilometers" AS odometro_na_troca,
+                    t."TripEnd"
+                FROM 
+                    public.trips_api t
+                WHERE 
+                    t."AssetId" = va."AssetId"
+                    AND t."TripEnd"::date <= pr.data_ultima_troca
+                ORDER BY 
+                    t."TripEnd" DESC
+                LIMIT 1
+            ) ot ON TRUE
+            LEFT JOIN odometro_atual oa ON va."AssetId" = oa."AssetId"
             ORDER BY 
-                data_ultima_troca DESC;
+                pr.data_ultima_troca DESC;
             """
             return pd.read_sql(query, self.db_engine)
         

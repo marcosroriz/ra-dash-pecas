@@ -54,7 +54,7 @@ lista_todos_modelos_veiculos.insert(0, {"MODELO": "TODOS"})
 
 df_veiculos = get_veiculos(pgEngine)
 lista_todos_veiculos = df_veiculos.to_dict(orient="records")
-lista_todos_veiculos.insert(0, {"EQUIPAMENTO": "TODOS"})
+# lista_todos_veiculos.insert(0, {"EQUIPAMENTO": "TODOS"})
 
 df_grupo = get_grupo_pecas(pgEngine)
 lista_todos_grupos = df_grupo.to_dict(orient="records")
@@ -133,7 +133,7 @@ def corrige_input_grupos(lista_modelos):
     Input("input-select-veiculos-prontuario", "value"),
 )
 def corrige_input_veiculos(lista_grupos):
-    return corrige_input(lista_grupos)
+    return corrige_input(lista_grupos, "50357")
 
 
 @callback(
@@ -419,7 +419,7 @@ layout = dbc.Container(
                                                         id="input-select-veiculos-prontuario",
                                                         options=[{"label": os["EQUIPAMENTO"], "value": os["EQUIPAMENTO"]} for os in lista_todos_veiculos],
                                                         multi=True,
-                                                        value=["TODOS"],
+                                                        value=["50357"],
                                                         placeholder="Selecione um ou mais veiculos...",
                                                     ),
                                                 ],
