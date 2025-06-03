@@ -46,4 +46,11 @@ tbl_prontuario_veiculo = [
         "wrapHeaderText": True,
         "autoHeaderHeight": True,
     },
+    {
+        "field": "km_peca",
+        "headerName": "KM ATUAL DA PEÇA",
+        "filter": "agNumberColumnFilter",
+        "valueFormatter": {"function": "params.value.toLocaleString('pt-BR') + 'Km'"},
+        "type": ["numericColumn"],
+    },
 ]

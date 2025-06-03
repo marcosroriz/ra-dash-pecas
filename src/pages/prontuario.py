@@ -104,6 +104,9 @@ def corrige_input(lista, termo_all="TODAS"):
     # Caso 2: Se "TODAS" foi selecionado após outras opções, reseta para "TODAS"
     if len(lista) > 1 and termo_all in lista[1:]:
         return [termo_all]
+    
+    if len(lista) > 1:
+        return lista[1:]
 
     # Caso 3: Se alguma opção foi selecionada após "TODAS", remove "TODAS"
     if termo_all in lista and len(lista) > 1:

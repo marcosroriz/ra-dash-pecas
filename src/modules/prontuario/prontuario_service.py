@@ -52,7 +52,7 @@ class ProntuarioService:
             query = f"""
                 SELECT DISTINCT "PRODUTO" AS "LABEL"
                 FROM pecas_gerais
-                WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}' "GRUPO"  != 'Consumo'
+                WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}' AND "GRUPO"  != 'Consumo'
                 {subquery_modelo_str}
                 {subquery_equipamentos_str}
                 {subquery_grupos_str}
@@ -143,7 +143,7 @@ class ProntuarioService:
             )
             SELECT 
                 pr.*,
-                (oa.odometro_atual - ot.odometro_na_troca) AS km_peça
+                (oa.odometro_atual - ot.odometro_na_troca) AS km_peca
             FROM 
                 pecas_resumo pr
             JOIN 
@@ -165,6 +165,7 @@ class ProntuarioService:
             ORDER BY 
                 pr.data_ultima_troca DESC;
             """
+            print(query)
             return pd.read_sql(query, self.db_engine)
         
         except ValueError as e:
