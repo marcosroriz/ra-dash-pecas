@@ -51,7 +51,7 @@ class ProntuarioService:
 
             query = f"""
                 SELECT DISTINCT "PRODUTO" AS "LABEL"
-                FROM pecas_gerais
+                FROM view_pecas_desconsiderando_combustivel
                 WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}' AND "GRUPO"  != 'Consumo'
                 {subquery_modelo_str}
                 {subquery_equipamentos_str}
@@ -115,7 +115,7 @@ class ProntuarioService:
                     COUNT(*) AS quantidade_trocas,
                     MAX(TO_DATE("DATA", 'DD/MM/YYYY')) AS data_ultima_troca
                 FROM 
-                    pecas_gerais
+                    view_pecas_desconsiderando_combustivel
                 WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}' AND "GRUPO"  != 'Consumo'
                     {subquery_modelo_str}
                     {subquery_equipamentos_str}
