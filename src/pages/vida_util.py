@@ -242,6 +242,45 @@ def grafico_e_df_boxplot_pecas(datas, lista_modelos, lista_pecas):
 
     return fig, df.to_dict('records')
 
+
+@callback(
+    Output("boxplot-vida-util-pecas-5000km", "figure"),
+    #Output("tabela-vida-util-pecas", "rowData"),
+    [
+        Input("input-intervalo-datas-pecas-os", "value"),
+        Input("input-select-modelo-veiculos-pecas-vida-util", "value"),
+        Input("input-select-peca-vida-util", "value"),
+    ],
+)
+def grafico_e_df_boxplot_pecas_5000km(datas, lista_modelos, lista_pecas):
+    if not datas or not lista_modelos or not lista_pecas:
+        return go.Figure()#, []
+
+    df = vida_util_service.get_pecas(datas, lista_modelos, lista_pecas)
+
+    if df.empty or "duracao_km" not in df.columns:
+        return go.Figure()#, []
+
+    # Remove outliers
+    df = remover_outliers_iqr(df, "duracao_km")
+    df["duracao_km"] = df["duracao_km"].round(1)
+    df = df[df["duracao_km"] > 5000]
+
+    if "TODAS" in lista_pecas:
+        fig = px.box(df, y="duracao_km", title="Boxplot Geral da Duração (km)")
+    else:
+        fig = px.box(df, x="nome_pecas", y="duracao_km", title="Boxplot por Peça")
+
+    fig.update_layout(
+        xaxis_title="Peça" if "TODAS" not in lista_pecas else "",
+        yaxis_title="Duração (km)",
+        boxmode="group",
+        template="plotly_white"
+    )
+
+    return fig#, df.to_dict('records')
+
+# boxplot-vida-util-pecas-5000km
 ##############################################################################
 ### Callbacks para os labels #################################################
 ##############################################################################
@@ -483,6 +522,27 @@ layout = dbc.Container(
                                     align="center",
                                 ),
                                 dcc.Graph(id="boxplot-vida-util-pecas"),
+                                dmc.Space(h=40),
+                                dbc.Row(
+                                    [
+                                        dbc.Col(DashIconify(icon="mdi:chart-line", width=45), width="auto"),
+                                        dbc.Col(
+                                            dbc.Row(
+                                                [
+                                                    html.H4(
+                                                        "Boxplot vida útil das peças acima de 5000 km",
+                                                        className="align-self-center",
+                                                    ),
+                                                    dmc.Space(h=5),
+                                                    gera_labels_inputs("vida-util-das-pecas-5000km"),
+                                                ]
+                                            ),
+                                            width=True,
+                                        ),
+                                    ],
+                                    align="center",
+                                ),
+                                dcc.Graph(id="boxplot-vida-util-pecas-5000km"),
                                 dmc.Space(h=40),
                                 # Tabela com as estatísticas gerais de Retrabalho
                                 dbc.Row(

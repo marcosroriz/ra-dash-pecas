@@ -155,10 +155,15 @@ class VidaUtilService:
                     ultimo_hodometro,
                     grupo_peca,
                     sub_grupo_peca,
+                    quantidade_peca as quantidade_troca_1,
                     LEAD(ultimo_hodometro) OVER (
                         PARTITION BY id_veiculo, nome_pecas
                         ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
                     ) AS km_proxima_troca,
+                    LEAD(quantidade_peca) OVER (
+                        PARTITION BY id_veiculo, nome_pecas
+                        ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
+                    ) AS quantidade_troca_2,
                     LEAD(ultimo_hodometro) OVER (
                         PARTITION BY id_veiculo, nome_pecas
                         ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')

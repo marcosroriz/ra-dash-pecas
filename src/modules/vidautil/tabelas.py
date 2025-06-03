@@ -57,6 +57,20 @@ tbl_vida_util_pecas = [
         "headerName": "DURAÇÃO KM",
         "filter": "agNumberColumnFilter",
         "maxWidth": 200,
-        "type": ["numericColumn"],
+        "type": ["numericColumn"], 
+    },
+    {
+        "field": "quantidade_troca_1",
+        "headerName": "QTD TROCA 1",
+        "filter": "agNumberColumnFilter",
+        "maxWidth": 200,
+        "type": ["numericColumn"], 
+    },
+    {
+        "field": "quantidade_troca_2",
+        "headerName": "QTD TROCA 1",
+        "filter": "agNumberColumnFilter",
+        "maxWidth": 200,
+        "type": ["numericColumn"], 
     }
 ] 
