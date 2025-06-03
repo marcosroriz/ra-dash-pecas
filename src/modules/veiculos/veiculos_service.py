@@ -33,7 +33,7 @@ class VeiculosService:
                 SELECT DISTINCT 
                     "EQUIPAMENTO" as "LABEL"
                 FROM pecas_gerais
-                WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'
+                WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}' 
                 {subquery_modelo_str}
                 ORDER BY "EQUIPAMENTO";
             """
@@ -77,6 +77,7 @@ class VeiculosService:
                 WHERE data_os BETWEEN '{data_inicio}' AND '{data_fim}' AND id_veiculo = '{veiculo[0]}'
                 ORDER BY nome_pecas;
             """
+            print(query)
             df = pd.read_sql(query, self.db_engine)
             # Ordena por data_os
             df = df.sort_values(["nome_pecas", "data_os"])

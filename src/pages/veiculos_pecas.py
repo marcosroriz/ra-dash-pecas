@@ -302,8 +302,8 @@ layout = dbc.Container(
                                         dbc.Col(
                                             html.H1(
                                                 [
-                                                    "Visão das Peças por Veiculos",
-                                                    html.Strong("peças"),
+                                                    "Visão das Peças por",
+                                                    html.Strong("Veiculos"),
                                                 ],
                                                 className="align-self-center",
                                             ),
