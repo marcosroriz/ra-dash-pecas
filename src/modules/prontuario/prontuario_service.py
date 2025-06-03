@@ -52,7 +52,7 @@ class ProntuarioService:
             query = f"""
                 SELECT DISTINCT "PRODUTO" AS "LABEL"
                 FROM pecas_gerais
-                WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'
+                WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}' "GRUPO"  != 'Consumo'
                 {subquery_modelo_str}
                 {subquery_equipamentos_str}
                 {subquery_grupos_str}
@@ -116,7 +116,7 @@ class ProntuarioService:
                     MAX(TO_DATE("DATA", 'DD/MM/YYYY')) AS data_ultima_troca
                 FROM 
                     pecas_gerais
-                WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'
+                WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}' AND "GRUPO"  != 'Consumo'
                     {subquery_modelo_str}
                     {subquery_equipamentos_str}
                     {subquery_grupos_str}
