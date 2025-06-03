@@ -69,8 +69,8 @@ class HomeService:
             query = f"""
                 SELECT DISTINCT "PRODUTO" AS "LABEL"
                 FROM pecas_gerais
-                LEFT JOIN os_dados ON "NUMERO DA OS" = "OS"
-                WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'
+                LEFT JOIN os_dados ON "NUMERO DA OS" = "OS" 
+                WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}' AND "GRUPO"  != 'Consumo'
                 {subquery_secoes_str}
                 {subquery_modelo_str}
                 {subquery_ofcina_str}
@@ -151,7 +151,7 @@ class HomeService:
                         pecas_gerais
                     LEFT JOIN 
                         os_dados ON "NUMERO DA OS" = "OS"
-                    WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'    
+                    WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}' AND "GRUPO"  != 'Consumo'
                     {subquery_secoes_str}
                     {subquery_modelo_str}
                     {subquery_ofcina_str}
@@ -245,7 +245,7 @@ class HomeService:
                         pecas_gerais
                     LEFT JOIN 
                         os_dados ON "NUMERO DA OS" = "OS"
-                    WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'    
+                    WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}' AND "GRUPO"  != 'Consumo'
                     {subquery_secoes_str}
                     {subquery_modelo_str}
                     {subquery_ofcina_str}
@@ -340,7 +340,7 @@ class HomeService:
                         pecas_gerais
                     LEFT JOIN 
                         os_dados ON "NUMERO DA OS" = "OS"
-                    WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'    
+                    WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}' AND "GRUPO"  != 'Consumo'
                     {subquery_secoes_str}
                     {subquery_modelo_str}
                     {subquery_ofcina_str}
@@ -445,7 +445,7 @@ class HomeService:
                         pecas_gerais
                     LEFT JOIN 
                         os_dados ON "NUMERO DA OS" = "OS"
-                    WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'    
+                    WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}' AND "GRUPO"  != 'Consumo'   
                     {subquery_secoes_str}
                     {subquery_modelo_str}
                     {subquery_ofcina_str}
