@@ -61,7 +61,7 @@ class ServiceOS:
                 SELECT DISTINCT 
                     "DESCRICAO DO SERVICO" as "LABEL"
                 FROM os_dados 
-                LEFT JOIN pecas_gerais ON "NUMERO DA OS" = "OS"
+                LEFT JOIN view_pecas_desconsiderando_combustivel ON "NUMERO DA OS" = "OS"
                 WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'  AND "GRUPO"  != 'Consumo'
                 {subquery_secoes_str}
                 {subquery_modelo_str}
@@ -110,7 +110,7 @@ class ServiceOS:
                 SELECT 
                     "PRODUTO" AS pecas,
                     SUM("QUANTIDADE") AS total_trocas
-                FROM pecas_gerais
+                FROM view_pecas_desconsiderando_combustivel
                 LEFT JOIN 
                         os_dados ON "NUMERO DA OS" = "OS"
                 WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'  AND "GRUPO"  != 'Consumo'
