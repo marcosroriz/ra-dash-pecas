@@ -402,7 +402,7 @@ layout = dbc.Container(
                                                         type="range",
                                                         minDate=date(2024, 8, 1),
                                                         maxDate=date.today(),
-                                                        value=[date(2024, 8, 1), date.today()],
+                                                        value=[date(2025, 1, 1), date.today()],
                                                     ),
                                                 ],
                                                 className="dash-bootstrap",

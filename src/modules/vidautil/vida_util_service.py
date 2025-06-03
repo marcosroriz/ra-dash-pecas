@@ -32,8 +32,10 @@ class VidaUtilService:
 
         try:
             # Converte as datas para o formato desejado (dd/mm/yyyy)
-            data_inicio = pd.to_datetime(datas[0]).strftime("%d/%m/%Y")
-            data_fim = pd.to_datetime(datas[1]).strftime("%d/%m/%Y")
+            data_inicio = pd.to_datetime(datas[0]).strftime("%Y-%m-%d")
+            data_fim = pd.to_datetime(datas[1]).strftime("%Y-%m-%d")
+
+
             
             # Gera subqueries SQL a partir das listas de filtros
             subquery_modelo_str = subquery_modelos_peças(lista_modelos, prefix="DF.")
@@ -60,6 +62,8 @@ class VidaUtilService:
                     nome_pecas,
                     data_os,
                     ultimo_hodometro,
+                    grupo_peca,
+                    sub_grupo_peca,
                     LEAD(ultimo_hodometro) OVER (
                         PARTITION BY id_veiculo, nome_pecas
                         ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
@@ -78,23 +82,26 @@ class VidaUtilService:
                         ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
                     ) - TO_DATE(data_os, 'YYYY-MM-DD') AS duracao_dias
                 FROM
-                    view_os_pecas_hodometro as vph
+                    mat_view_os_pecas_hodometro_v2 as vph
             ) AS trocas
             LEFT JOIN veiculos_api va
                 ON "Description" = id_veiculo
-            WHERE duracao_km IS NOT NULL
+            WHERE 
+                duracao_km IS NOT NULL
+                AND grupo_peca NOT IN ('CONSUMO PARA FROTAS','MATERIAL DE CONSUMO', 'Pneumáticos')
+                AND sub_grupo_peca NOT IN ('Parafusos', 'Tintas')
             ORDER BY
                 nome_pecas, id_veiculo, TO_DATE(data_os, 'YYYY-MM-DD')
             ---
             --
             --
             ) as DF
-            where DF.data_os BETWEEN '{data_inicio}' AND '{data_fim}'
-                {subquery_modelo_str}
-            group by 
+            WHERE DF.data_os BETWEEN '{data_inicio}' AND '{data_fim}'
+                    {subquery_modelo_str}
+            group by    
                 nome_pecas
             """
-
+            print(query)
             # Executa a consulta e retorna os dados como DataFrame
             return pd.read_sql(query, self.db_engine)
 
@@ -123,8 +130,9 @@ class VidaUtilService:
 
         try:
             # Converte as datas para o formato desejado (dd/mm/yyyy)
-            data_inicio = pd.to_datetime(datas[0]).strftime("%d/%m/%Y")
-            data_fim = pd.to_datetime(datas[1]).strftime("%d/%m/%Y")
+            data_inicio = pd.to_datetime(datas[0]).strftime("%Y-%m-%d")
+            data_fim = pd.to_datetime(datas[1]).strftime("%Y-%m-%d")
+
             
             # Gera subqueries SQL a partir das listas de filtros
             subquery_modelo_str = subquery_modelos_peças(lista_modelos)
@@ -145,6 +153,8 @@ class VidaUtilService:
                     nome_pecas,
                     data_os,
                     ultimo_hodometro,
+                    grupo_peca,
+                    sub_grupo_peca,
                     LEAD(ultimo_hodometro) OVER (
                         PARTITION BY id_veiculo, nome_pecas
                         ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
@@ -163,7 +173,10 @@ class VidaUtilService:
                         ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
                     ) - TO_DATE(data_os, 'YYYY-MM-DD') AS duracao_dias
                 FROM
-                    view_os_pecas_hodometro as vph
+                    mat_view_os_pecas_hodometro_v2 as vph
+            where 
+                 grupo_peca NOT IN ('CONSUMO PARA FROTAS','MATERIAL DE CONSUMO', 'Pneumáticos')
+                AND sub_grupo_peca NOT IN ('Parafusos', 'Tintas')
             ) AS trocas
             LEFT JOIN veiculos_api va
                 ON "Description" = id_veiculo
@@ -176,6 +189,7 @@ class VidaUtilService:
             ---
             """
 
+            print(query)
             # Executa a consulta e retorna os dados como DataFrame
             return pd.read_sql(query, self.db_engine)
 
