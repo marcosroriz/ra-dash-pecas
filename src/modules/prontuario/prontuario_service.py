@@ -165,7 +165,6 @@ class ProntuarioService:
             ORDER BY 
                 pr.data_ultima_troca DESC;
             """
-            print(query)
             return pd.read_sql(query, self.db_engine)
         
         except ValueError as e:

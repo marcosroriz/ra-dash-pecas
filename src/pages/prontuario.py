@@ -212,11 +212,11 @@ def corrige_input_pecas(datas, lista_modelos, lista_veiculos, lista_grupos, list
 def atualiza_tabela_prontuario_pecas(datas, lista_modelos, lista_veiculos, lista_grupos, lista_pecas):
     # Valida input
     if not input_valido(datas, lista_modelos, lista_veiculos, lista_grupos, lista_pecas):
-        return []
+        return False,[]
 
     # Obtem dados
     df = prontuario_service.get_prontuario_pecas(datas, lista_modelos, lista_veiculos, lista_grupos, lista_pecas)
-
+    
     return False, df.to_dict("records")
 
 # Callback para atualizar o link de download quando o botão for clicado
