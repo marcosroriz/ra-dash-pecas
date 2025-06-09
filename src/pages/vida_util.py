@@ -49,7 +49,7 @@ pgEngine = pgDB.get_engine()
 vida_util_service = VidaUtilService(pgEngine)
 
 # Modelos de veículos
-df_modelos_veiculos = get_modelos(pgEngine)
+df_modelos_veiculos = get_modelos_pecas_odometro(pgEngine)
 lista_todos_modelos_veiculos = df_modelos_veiculos.to_dict(orient="records")
 lista_todos_modelos_veiculos.insert(0, {"MODELO": "TODOS"})
 
@@ -359,20 +359,22 @@ def download_excel_tabela_vida_util_pecas(n_clicks, datas, lista_modelos, lista_
     date_now = date.today().strftime('%d-%m-%Y')
 
     df = vida_util_service.get_pecas(datas, lista_modelos, lista_pecas)
-    df = remover_outliers_iqr(df, "duracao_km")
-    df["duracao_km"] = df["duracao_km"].round(1)
+    #df = remover_outliers_iqr(df, "km_efetivo_da_peca")
+    df["km_efetivo_da_peca"] = df["km_efetivo_da_peca"].round(1)
 
     df.rename(columns={
-    "nome_pecas": "NOME DA PEÇA",
-    "id_veiculo": "VEICULO",
-    "numero_troca": "N° TROCA",
-    "data_os": "DATA TROCA",
-    "data_proxima_troca": "DATA SEGUNDA TROCA",
-    "duracao_dias": "DURAÇÃO (DIAS)",
-    "ultimo_hodometro": "KM DA TROCA",
-    "km_proxima_troca": "KM DA SEGUNDA TROCA",
-    "duracao_km": "DURAÇÃO KM",
-    "Model": "MODELO VEICULO"
+        "nome_pecas": "NOME DA PEÇA",
+        "id_veiculo": "VEICULO",
+        "numero_troca": "N° TROCA",
+        "data_primeira_troca": "DATA PRIMEIRA TROCA",
+        "data_segunda_troca": "DATA SEGUNDA TROCA",
+        "dias_efetivo_da_peca": "DURAÇÃO DE DIAS EFETIVOS",
+        "odometro_primeira_troca": "HODOMETRO DA PRIMEIRA TROCA",
+        "odometro_segunda_troca": "HODOMETRO DA SEGUNDA TROCA",
+        "hodometro_atual_gps": "HODOMETRO ATUAL",
+        "km_efetivo_da_peca": "DURAÇÃO KM EFETIVO",
+        "quantidade_troca_1": "QTD TROCA 1",
+        "quantidade_troca_2": "QTD TROCA 2"
     }, inplace=True)
     
     excel_data = gerar_excel(df=df)

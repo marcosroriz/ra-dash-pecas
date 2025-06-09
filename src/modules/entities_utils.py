@@ -96,15 +96,17 @@ def get_modelos(dbEngine):
 
 def get_modelos_pecas_odometro(dbEngine):
     # Lista de OS
-    return pd.read_sql(
+    df = pd.read_sql(
         """
         SELECT DISTINCT
-            "MODELO" AS "MODELO"
+            "modelo_frota" AS "MODELO"
         FROM 
-            pecas_gerais
+            mat_view_os_pecas_hodometro_v3
         """,
         dbEngine,
     )
+    df = df.dropna(subset=["MODELO"])
+    return df
 
 def gerar_excel(df):
     output = io.BytesIO()
