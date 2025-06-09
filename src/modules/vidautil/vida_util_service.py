@@ -49,54 +49,59 @@ class VidaUtilService:
             --
             --
             --QUERY ORIGINAL
+            WITH trocas as (
+            SELECT 
+                    id_veiculo,
+                    nome_pecas,
+                    data_peca,
+                    ultimo_hodometro,
+                    grupo_peca,
+                    sub_grupo_peca,
+                    quantidade_peca as quantidade_troca_1,
+                    LEAD(ultimo_hodometro) OVER (
+                        PARTITION BY id_veiculo, nome_pecas
+                        ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
+                    ) AS km_proxima_troca,
+                    LEAD(quantidade_peca) OVER (
+                        PARTITION BY id_veiculo, nome_pecas
+                        ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
+                    ) AS quantidade_troca_2,
+                    LEAD(ultimo_hodometro) OVER (
+                        PARTITION BY id_veiculo, nome_pecas
+                        ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
+                    ) - ultimo_hodometro AS duracao_km,
+                    LEAD(TO_DATE(data_peca, 'YYYY-MM-DD')) OVER (
+                        PARTITION BY id_veiculo, nome_pecas
+                        ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
+                    ) AS data_proxima_troca,
+                    -- Subtração convertida corretamente
+                    LEAD(TO_DATE(data_peca, 'YYYY-MM-DD')) OVER (
+                        PARTITION BY id_veiculo, nome_pecas
+                        ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
+                    ) - TO_DATE(data_peca, 'YYYY-MM-DD') AS duracao_dias
+                FROM
+                    mat_view_os_pecas_hodometro_v3 as vph
+            where 
+                 grupo_peca NOT IN ('CONSUMO PARA FROTAS','MATERIAL DE CONSUMO', 'Pneumáticos')
+                AND sub_grupo_peca NOT IN ('Parafusos', 'Tintas')
+            )
             SELECT 
                 trocas.*,
                 ROW_NUMBER() OVER (
                     PARTITION BY id_veiculo, nome_pecas
-                    ORDER BY data_os
+                    ORDER BY data_peca
                 ) AS numero_troca,
                 va."Model"
-            FROM (
-                SELECT 
-                    id_veiculo,
-                    nome_pecas,
-                    data_os,
-                    ultimo_hodometro,
-                    grupo_peca,
-                    sub_grupo_peca,
-                    LEAD(ultimo_hodometro) OVER (
-                        PARTITION BY id_veiculo, nome_pecas
-                        ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
-                    ) AS km_proxima_troca,
-                    LEAD(ultimo_hodometro) OVER (
-                        PARTITION BY id_veiculo, nome_pecas
-                        ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
-                    ) - ultimo_hodometro AS duracao_km,
-                    LEAD(TO_DATE(data_os, 'YYYY-MM-DD')) OVER (
-                        PARTITION BY id_veiculo, nome_pecas
-                        ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
-                    ) AS data_proxima_troca,
-                    -- Subtração convertida corretamente
-                    LEAD(TO_DATE(data_os, 'YYYY-MM-DD')) OVER (
-                        PARTITION BY id_veiculo, nome_pecas
-                        ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
-                    ) - TO_DATE(data_os, 'YYYY-MM-DD') AS duracao_dias
-                FROM
-                    mat_view_os_pecas_hodometro_v2 as vph
-            ) AS trocas
+            FROM trocas
             LEFT JOIN veiculos_api va
                 ON "Description" = id_veiculo
-            WHERE 
-                duracao_km IS NOT NULL
-                AND grupo_peca NOT IN ('CONSUMO PARA FROTAS','MATERIAL DE CONSUMO', 'Pneumáticos')
-                AND sub_grupo_peca NOT IN ('Parafusos', 'Tintas')
             ORDER BY
-                nome_pecas, id_veiculo, TO_DATE(data_os, 'YYYY-MM-DD')
+                nome_pecas, id_veiculo, TO_DATE(data_peca, 'YYYY-MM-DD')
             ---
             --
             --
             ) as DF
-            WHERE DF.data_os BETWEEN '{data_inicio}' AND '{data_fim}'
+            WHERE DF.data_peca BETWEEN '{data_inicio}' AND '{data_fim}'
                     {subquery_modelo_str}
             group by    
                 nome_pecas
@@ -139,64 +144,116 @@ class VidaUtilService:
             subquery_peças_str = subquery_pecas2(lista_peças)
             # Monta a query final com os filtros aplicados
             query = f"""
-            --QUERY ORIGINAL
-            SELECT 
-                trocas.*,
-                ROW_NUMBER() OVER (
-                    PARTITION BY id_veiculo, nome_pecas
-                    ORDER BY data_os
-                ) AS numero_troca,
-                va."Model"
-            FROM (
+            WITH ultimo_hodometro_gps AS (
+                SELECT
+                    va."AssetId",
+                    mvd."maior_km_dia",
+                    mvd."year_month_day"
+                FROM veiculos_api va
+                LEFT JOIN LATERAL (
+                    SELECT 
+                        mvod."year_month_day",
+                        mvod."maior_km_dia"
+                    FROM mat_view_odometro_diario mvod
+                    WHERE mvod."AssetId" = va."AssetId"
+                    ORDER BY mvod."year_month_day" DESC
+                    LIMIT 1
+                ) mvd ON TRUE
+            ),
+            trocas AS (
+                    SELECT 
+                        id_veiculo,
+                        nome_pecas,
+                        data_peca as data_primeira_troca,
+                        data_ultimo_hodometro as data_odometro_primeira_troca,
+                        ultimo_hodometro as odometro_primeira_troca,
+                        codigo_peca,
+                        grupo_peca,
+                        sub_grupo_peca,
+                        quantidade_peca as quantidade_troca_1,
+                        LEAD(quantidade_peca) OVER (
+                            PARTITION BY id_veiculo, nome_pecas
+                            ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
+                        ) AS quantidade_troca_2,
+                        LEAD(ultimo_hodometro) OVER (
+                            PARTITION BY id_veiculo, codigo_peca
+                            ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
+                        ) AS odometro_segunda_troca,
+                        LEAD(TO_DATE(data_peca, 'YYYY-MM-DD')) OVER (
+                            PARTITION BY id_veiculo, codigo_peca
+                            ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
+                        ) AS data_segunda_troca,
+                    LEAD(TO_DATE(data_ultimo_hodometro, 'YYYY-MM-DD')) OVER (
+                            PARTITION BY id_veiculo, codigo_peca
+                            ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
+                        ) AS data_odometro_segunda_troca,
+                        LEAD(ultimo_hodometro) OVER (
+                            PARTITION BY id_veiculo, codigo_peca
+                            ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
+                        ) - ultimo_hodometro AS duracao_km_entre_trocas,
+                        LEAD(TO_DATE(data_peca, 'YYYY-MM-DD')) OVER (
+                            PARTITION BY id_veiculo, codigo_peca
+                            ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
+                        ) - TO_DATE(data_peca, 'YYYY-MM-DD') AS duracao_dias_entre_trocas
+                    FROM
+                        mat_view_os_pecas_hodometro_v3 as vph
+            ),
+            trocas_detalhadas AS (
                 SELECT 
-                    id_veiculo,
-                    nome_pecas,
-                    data_os,
-                    ultimo_hodometro,
-                    grupo_peca,
-                    sub_grupo_peca,
-                    quantidade_peca as quantidade_troca_1,
-                    LEAD(ultimo_hodometro) OVER (
-                        PARTITION BY id_veiculo, nome_pecas
-                        ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
-                    ) AS km_proxima_troca,
-                    LEAD(quantidade_peca) OVER (
-                        PARTITION BY id_veiculo, nome_pecas
-                        ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
-                    ) AS quantidade_troca_2,
-                    LEAD(ultimo_hodometro) OVER (
-                        PARTITION BY id_veiculo, nome_pecas
-                        ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
-                    ) - ultimo_hodometro AS duracao_km,
-                    LEAD(TO_DATE(data_os, 'YYYY-MM-DD')) OVER (
-                        PARTITION BY id_veiculo, nome_pecas
-                        ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
-                    ) AS data_proxima_troca,
-                    -- Subtração convertida corretamente
-                    LEAD(TO_DATE(data_os, 'YYYY-MM-DD')) OVER (
-                        PARTITION BY id_veiculo, nome_pecas
-                        ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
-                    ) - TO_DATE(data_os, 'YYYY-MM-DD') AS duracao_dias
-                FROM
-                    mat_view_os_pecas_hodometro_v2 as vph
-            where 
-                 grupo_peca NOT IN ('CONSUMO PARA FROTAS','MATERIAL DE CONSUMO', 'Pneumáticos')
+                    trocas.*,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY id_veiculo, codigo_peca
+                        ORDER BY data_primeira_troca
+                    ) AS numero_troca,
+                    CASE 
+                        WHEN duracao_km_entre_trocas is NOT NULL 
+                        THEN 'TEVE PAR'
+                        ELSE 'NÃO TEVE PAR'
+                    END AS flag_troca,
+                    va."Model",
+                    va."AssetId",
+                    uhg."maior_km_dia" AS hodometro_atual_gps,
+                    uhg."year_month_day" AS data_hodometro_gps,
+                    ROUND(
+                        CASE
+                            WHEN trocas.duracao_km_entre_trocas IS NOT NULL THEN trocas.duracao_km_entre_trocas
+                            WHEN uhg."maior_km_dia" >= trocas.odometro_primeira_troca THEN uhg."maior_km_dia" - trocas.odometro_primeira_troca
+                            WHEN duracao_km_entre_trocas < 0 THEN (1000000 - trocas.odometro_primeira_troca) + trocas.odometro_segunda_troca
+                            ELSE (1000000 - trocas.odometro_primeira_troca) + uhg."maior_km_dia"
+                        END::numeric, 
+                    2
+                    ) AS km_efetivo_da_peca,
+                    CASE
+                        WHEN trocas.duracao_dias_entre_trocas IS NOT NULL THEN trocas.duracao_dias_entre_trocas
+                        ELSE (CURRENT_DATE - trocas.data_primeira_troca::date)
+                    END AS dias_efetivo_da_peca
+                FROM trocas
+                LEFT JOIN veiculos_api va
+                    ON va."Description" = trocas.id_veiculo
+                LEFT JOIN ultimo_hodometro_gps uhg 
+                    ON va."AssetId" = uhg."AssetId"
+                --WHERE
+                    --duracao_km IS NOT NULL
+                    --AND data_os BETWEEN '20250101' AND '20250501'
+            )
+            SELECT 
+                *
+                FROM trocas_detalhadas
+            WHERE 
+                km_efetivo_da_peca < 123000
+                AND grupo_peca NOT IN ('CONSUMO PARA FROTAS','MATERIAL DE CONSUMO', 'Pneumáticos')
                 AND sub_grupo_peca NOT IN ('Parafusos', 'Tintas')
-            ) AS trocas
-            LEFT JOIN veiculos_api va
-                ON "Description" = id_veiculo
-            WHERE   duracao_km IS NOT NULL
-                AND data_os BETWEEN '{data_inicio}' AND '{data_fim}'
+                AND data_primeira_troca BETWEEN '{data_inicio}' AND '{data_fim}'
                     {subquery_modelo_str}
                     {subquery_peças_str}
             ORDER BY
-                nome_pecas, id_veiculo, TO_DATE(data_os, 'YYYY-MM-DD')
-            ---
+                nome_pecas, id_veiculo, TO_DATE(data_primeira_troca, 'YYYY-MM-DD')
             """
 
-            print(query)
+            
             # Executa a consulta e retorna os dados como DataFrame
-            return pd.read_sql(query, self.db_engine)
+            df = pd.read_sql(query, self.db_engine)
+            return df
 
         except ValueError as e:
             # Erro ao converter datas

@@ -94,6 +94,18 @@ def get_modelos(dbEngine):
         dbEngine,
     )
 
+def get_modelos_pecas_odometro(dbEngine):
+    # Lista de OS
+    return pd.read_sql(
+        """
+        SELECT DISTINCT
+            "MODELO" AS "MODELO"
+        FROM 
+            pecas_gerais
+        """,
+        dbEngine,
+    )
+
 def gerar_excel(df):
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:

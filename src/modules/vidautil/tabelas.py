@@ -5,6 +5,8 @@ tbl_vida_util_pecas = [
         "pinned": "left",
         "minWidth": 400,
         "type": ["numericColumn"],
+        "cellClass" : "text-center",
+        "headerClass": "text-center"
     },
     {
         "field": "id_veiculo",
@@ -12,6 +14,8 @@ tbl_vida_util_pecas = [
         "pinned": "left",
         "minWidth": 100,
         "type": ["numericColumn"],
+        "cellClass" : "text-center",
+        "headerClass": "text-center"
     },
     {
     "field": "numero_troca",
@@ -19,58 +23,87 @@ tbl_vida_util_pecas = [
         "pinned": "left",
         "minWidth": 25,
         "type": ["numericColumn"],
+        "cellClass" : "text-center",
+        "headerClass": "text-center"
     },
-    {"field": "data_os",  
-     "headerName": "DATA TROCA",
-     "minWidth": 450
+    {"field": "data_primeira_troca",  
+     "headerName": "DATA PRIMEIRA TROCA",
+     "minWidth": 150,
+     "cellClass" : "text-center",
+     "headerClass": "text-center"
      },
     {
-     "field": "data_proxima_troca", 
+     "field": "data_segunda_troca", 
      "headerName": "DATA SEGUNDA TROCA", 
-     "minWidth": 450
+     "minWidth": 150,
+     "cellClass" : "text-center",
+     "headerClass": "text-center"
     },
     {
-        "field": "duracao_dias",
-        "headerName": "DURAÇÃO (DIAS)",
+        "field": "dias_efetivo_da_peca",
+        "headerName": "DURAÇÃO DE DIAS EFETIVOS",
         "filter": "agNumberColumnFilter",
-        "maxWidth": 200,
+        "maxWidth": 230,
         "type": ["numericColumn"],
+        "cellClass" : "text-center",
+        "headerClass": "text-center"
     },
     {
-        "field": "ultimo_hodometro",
-        "headerName": "KM DA TROCA",
+        "field": "odometro_primeira_troca",
+        "headerName": "HODOMETRO DA PRIMEIRA TROCA",
         "wrapHeaderText": True,
         "autoHeaderHeight": True,
-        "maxWidth": 200,
+        "maxWidth": 250,
         "filter": "agNumberColumnFilter",
         "type": ["numericColumn"],
+        "cellClass" : "text-center",
+        "headerClass": "text-center"
     },
     {
-        "field": "km_proxima_troca",
-        "headerName": "KM DA SEGUNDA TROCA",
+        "field": "odometro_segunda_troca",
+        "headerName": "HODOMETRO DA SEGUNDA TROCA",
+        "filter": "agNumberColumnFilter",
+        "wrapHeaderText": True,
+        "autoHeaderHeight": True,
+        "maxWidth": 250,
+        "type": ["numericColumn"],
+        "cellClass" : "text-center",
+        "headerClass": "text-center"
+    },
+    {
+        "field": "hodometro_atual_gps",
+        "headerName": "HODOMETRO ATUAL",
         "filter": "agNumberColumnFilter",
         "maxWidth": 200,
         "type": ["numericColumn"],
+        "cellClass" : "text-center",
+        "headerClass": "text-center"
     },
     {
-        "field": "duracao_km",
-        "headerName": "DURAÇÃO KM",
+        "field": "km_efetivo_da_peca",
+        "headerName": "DURAÇÃO KM EFETIVO",
         "filter": "agNumberColumnFilter",
         "maxWidth": 200,
         "type": ["numericColumn"], 
+        "cellClass" : "text-center",
+        "headerClass": "text-center"
     },
     {
         "field": "quantidade_troca_1",
         "headerName": "QTD TROCA 1",
         "filter": "agNumberColumnFilter",
-        "maxWidth": 200,
+        "maxWidth": 150,
         "type": ["numericColumn"], 
+        "cellClass" : "text-center",
+        "headerClass": "text-center"
     },
     {
         "field": "quantidade_troca_2",
-        "headerName": "QTD TROCA 1",
+        "headerName": "QTD TROCA 2",
         "filter": "agNumberColumnFilter",
-        "maxWidth": 200,
+        "maxWidth": 150,
         "type": ["numericColumn"], 
+        "cellClass" : "text-center",
+        "headerClass": "text-center"
     }
 ] 

@@ -221,17 +221,17 @@ def grafico_e_df_boxplot_pecas(datas, lista_modelos, lista_pecas):
 
     df = vida_util_service.get_pecas(datas, lista_modelos, lista_pecas)
 
-    if df.empty or "duracao_km" not in df.columns:
+    if df is None or df.empty or "km_efetivo_da_peca" not in df.columns:
         return go.Figure(), []
 
     # Remove outliers
-    df = remover_outliers_iqr(df, "duracao_km")
-    df["duracao_km"] = df["duracao_km"].round(1)
+    #df = remover_outliers_iqr(df, "km_efetivo_da_peca")
+    df["km_efetivo_da_peca"] = df["km_efetivo_da_peca"].round(1)
 
     if "TODAS" in lista_pecas:
-        fig = px.box(df, y="duracao_km", title="Boxplot Geral da Duração (km)")
+        fig = px.box(df, y="km_efetivo_da_peca", title="Boxplot Geral da Duração (km)")
     else:
-        fig = px.box(df, x="nome_pecas", y="duracao_km", title="Boxplot por Peça")
+        fig = px.box(df, x="nome_pecas", y="km_efetivo_da_peca", title="Boxplot por Peça")
 
     fig.update_layout(
         xaxis_title="Peça" if "TODAS" not in lista_pecas else "",
@@ -258,18 +258,18 @@ def grafico_e_df_boxplot_pecas_5000km(datas, lista_modelos, lista_pecas):
 
     df = vida_util_service.get_pecas(datas, lista_modelos, lista_pecas)
 
-    if df.empty or "duracao_km" not in df.columns:
+    if df is None or df.empty or "km_efetivo_da_peca" not in df.columns:
         return go.Figure()#, []
 
     # Remove outliers
-    df = remover_outliers_iqr(df, "duracao_km")
-    df["duracao_km"] = df["duracao_km"].round(1)
-    df = df[df["duracao_km"] > 5000]
+    #df = remover_outliers_iqr(df, "km_efetivo_da_peca")
+    df["km_efetivo_da_peca"] = df["km_efetivo_da_peca"].round(1)
+    df = df[df["km_efetivo_da_peca"] > 5000]
 
     if "TODAS" in lista_pecas:
-        fig = px.box(df, y="duracao_km", title="Boxplot Geral da Duração (km)")
+        fig = px.box(df, y="km_efetivo_da_peca", title="Boxplot Geral da Duração (km)")
     else:
-        fig = px.box(df, x="nome_pecas", y="duracao_km", title="Boxplot por Peça")
+        fig = px.box(df, x="nome_pecas", y="km_efetivo_da_peca", title="Boxplot por Peça")
 
     fig.update_layout(
         xaxis_title="Peça" if "TODAS" not in lista_pecas else "",
@@ -439,7 +439,7 @@ layout = dbc.Container(
                                                         id="input-intervalo-datas-pecas-os",
                                                         allowSingleDateInRange=True,
                                                         type="range",
-                                                        minDate=date(2024, 8, 1),
+                                                        minDate=date(2024, 1, 1),
                                                         maxDate=date.today(),
                                                         value=[date(2025, 1, 1), date.today()],
                                                     ),
