@@ -113,7 +113,7 @@ class ServiceOS:
                 FROM view_pecas_desconsiderando_combustivel
                 LEFT JOIN 
                         os_dados ON "NUMERO DA OS" = "OS"
-                WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'  AND "GRUPO"  != 'Consumo'
+                WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'  AND "GRUPO"  != 'Consumo' AND "OS" != 0
                 {subquery_secoes_str}
                 {subquery_modelo_str}
                 {subquery_ofcina_str}
