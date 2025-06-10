@@ -116,7 +116,7 @@ class ProntuarioService:
                     MAX(TO_DATE("DATA", 'DD/MM/YYYY')) AS data_ultima_troca
                 FROM 
                     view_pecas_desconsiderando_combustivel
-                WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}' AND "GRUPO"  != 'Consumo'
+                WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}' AND "GRUPO"  != 'Consumo' AND "OS" != 0
                     {subquery_modelo_str}
                     {subquery_equipamentos_str}
                     {subquery_grupos_str}
