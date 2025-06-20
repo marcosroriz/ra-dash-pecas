@@ -31,51 +31,61 @@ class RelatorioPecasService:
             --
             --
             --QUERY ORIGINAL
+            WITH trocas as (
+            SELECT 
+                    id_veiculo,
+                    nome_pecas,
+                    data_peca,
+                    ultimo_hodometro,
+                    grupo_peca,
+                    sub_grupo_peca,
+                    quantidade_peca as quantidade_troca_1,
+                    LEAD(ultimo_hodometro) OVER (
+                        PARTITION BY id_veiculo, nome_pecas
+                        ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
+                    ) AS km_proxima_troca,
+                    LEAD(quantidade_peca) OVER (
+                        PARTITION BY id_veiculo, nome_pecas
+                        ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
+                    ) AS quantidade_troca_2,
+                    LEAD(ultimo_hodometro) OVER (
+                        PARTITION BY id_veiculo, nome_pecas
+                        ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
+                    ) - ultimo_hodometro AS duracao_km,
+                    LEAD(TO_DATE(data_peca, 'YYYY-MM-DD')) OVER (
+                        PARTITION BY id_veiculo, nome_pecas
+                        ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
+                    ) AS data_proxima_troca,
+                    -- Subtração convertida corretamente
+                    LEAD(TO_DATE(data_peca, 'YYYY-MM-DD')) OVER (
+                        PARTITION BY id_veiculo, nome_pecas
+                        ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
+                    ) - TO_DATE(data_peca, 'YYYY-MM-DD') AS duracao_dias
+                FROM
+                    mat_view_os_pecas_hodometro_v3 as vph
+            where 
+                 grupo_peca NOT IN ('CONSUMO PARA FROTAS','MATERIAL DE CONSUMO', 'Pneumáticos')
+                AND sub_grupo_peca NOT IN ('Parafusos', 'Tintas')
+            )
             SELECT 
                 trocas.*,
                 ROW_NUMBER() OVER (
                     PARTITION BY id_veiculo, nome_pecas
-                    ORDER BY data_os
+                    ORDER BY data_peca
                 ) AS numero_troca,
                 va."Model"
-            FROM (
-                SELECT 
-                    id_veiculo,
-                    nome_pecas,
-                    data_os,
-                    ultimo_hodometro,
-                    LEAD(ultimo_hodometro) OVER (
-                        PARTITION BY id_veiculo, nome_pecas
-                        ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
-                    ) AS km_proxima_troca,
-                    LEAD(ultimo_hodometro) OVER (
-                        PARTITION BY id_veiculo, nome_pecas
-                        ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
-                    ) - ultimo_hodometro AS duracao_km,
-                    LEAD(TO_DATE(data_os, 'YYYY-MM-DD')) OVER (
-                        PARTITION BY id_veiculo, nome_pecas
-                        ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
-                    ) AS data_proxima_troca,
-                    -- Subtração convertida corretamente
-                    LEAD(TO_DATE(data_os, 'YYYY-MM-DD')) OVER (
-                        PARTITION BY id_veiculo, nome_pecas
-                        ORDER BY TO_DATE(data_os, 'YYYY-MM-DD')
-                    ) - TO_DATE(data_os, 'YYYY-MM-DD') AS duracao_dias
-                FROM
-                    view_os_pecas_hodometro as vph
-            ) AS trocas
+            FROM trocas
             LEFT JOIN veiculos_api va
                 ON "Description" = id_veiculo
-            WHERE duracao_km IS NOT NULL
             ORDER BY
-                nome_pecas, id_veiculo, TO_DATE(data_os, 'YYYY-MM-DD')
+                nome_pecas, id_veiculo, TO_DATE(data_peca, 'YYYY-MM-DD')
             ---
             --
             --
             ) as DF
-            where DF.data_os BETWEEN '{data_inicio}' AND '{data_fim}'
-                {subquery_modelo_str}
-            group by 
+            WHERE DF.data_peca BETWEEN '{data_inicio}' AND '{data_fim}'
+                    {subquery_modelo_str}
+            group by    
                 nome_pecas
             """
 
@@ -220,7 +230,7 @@ class RelatorioPecasService:
                 ) AS trocas
                 LEFT JOIN veiculos_api va ON "Description" = id_veiculo
                 WHERE duracao_km IS NOT NULL
-                AND data_os BETWEEN '20240501' AND '20250601'
+                --AND data_os BETWEEN '20240501' AND '20250601'
             ),
             estimativa as ( SELECT 
                 p.*,
