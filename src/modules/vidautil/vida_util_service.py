@@ -49,7 +49,23 @@ class VidaUtilService:
             --
             --
             --QUERY ORIGINAL
-            WITH trocas as (
+            WITH ultimo_hodometro_gps AS (
+                SELECT
+                    va."AssetId",
+                    mvd."maior_km_dia",
+                    mvd."year_month_day"
+                FROM veiculos_api va
+                LEFT JOIN LATERAL (
+                    SELECT 
+                        mvod."year_month_day",
+                        mvod."maior_km_dia"
+                    FROM mat_view_odometro_diario mvod
+                    WHERE mvod."AssetId" = va."AssetId"
+                    ORDER BY mvod."year_month_day" DESC
+                    LIMIT 1
+                ) mvd ON TRUE
+            ),
+            trocas AS (
                     SELECT 
                         id_veiculo,
                         nome_pecas,
@@ -85,29 +101,64 @@ class VidaUtilService:
                             PARTITION BY id_veiculo, codigo_peca
                             ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
                         ) - TO_DATE(data_peca, 'YYYY-MM-DD') AS duracao_dias_entre_trocas
-                FROM
-                    mat_view_os_pecas_hodometro_v3 as vph
-            where 
-                 grupo_peca NOT IN ('CONSUMO PARA FROTAS','MATERIAL DE CONSUMO', 'Pneumáticos')
-                AND sub_grupo_peca NOT IN ('Parafusos', 'Tintas')
+                    FROM
+                        mat_view_os_pecas_hodometro_v3 as vph
+                    where 
+	    	        valor_peca > 0 -- NÃO PEGAR as PEÇAS COM VALOR NEGATIVO
+            ),
+            trocas_detalhadas AS (
+                SELECT 
+                    trocas.*,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY id_veiculo, codigo_peca
+                        ORDER BY data_primeira_troca
+                    ) AS numero_troca,
+                    CASE 
+                        WHEN duracao_km_entre_trocas is NOT NULL 
+                        THEN 'TEVE PAR'
+                        ELSE 'NÃO TEVE PAR'
+                    END AS flag_troca,
+                    va."Model",
+                    va."AssetId",
+                    uhg."maior_km_dia" AS hodometro_atual_gps,
+                    uhg."year_month_day" AS data_hodometro_gps,
+                    ROUND(
+                        CASE
+                            WHEN trocas.duracao_km_entre_trocas IS NOT NULL THEN trocas.duracao_km_entre_trocas
+                            WHEN uhg."maior_km_dia" >= trocas.odometro_primeira_troca THEN uhg."maior_km_dia" - trocas.odometro_primeira_troca
+                            WHEN duracao_km_entre_trocas < 0 THEN (1000000 - trocas.odometro_primeira_troca) + trocas.odometro_segunda_troca
+                            ELSE (1000000 - trocas.odometro_primeira_troca) + uhg."maior_km_dia"
+                        END::numeric, 
+                    2
+                    ) AS km_efetivo_da_peca,
+                    CASE
+                        WHEN trocas.duracao_dias_entre_trocas IS NOT NULL THEN trocas.duracao_dias_entre_trocas
+                        ELSE (CURRENT_DATE - trocas.data_primeira_troca::date)
+                    END AS dias_efetivo_da_peca
+                FROM trocas
+                LEFT JOIN veiculos_api va
+                    ON regexp_replace(va."Description", '\s*-\s*.*$', '') = trocas.id_veiculo
+                LEFT JOIN ultimo_hodometro_gps uhg 
+                    ON va."AssetId" = uhg."AssetId"
+                WHERE
+                    duracao_km_entre_trocas IS NOT NULL
+                    and duracao_km_entre_trocas > 0
+                    AND valor_peca > 0
             )
             SELECT 
-                trocas.*,
-                ROW_NUMBER() OVER (
-                    PARTITION BY id_veiculo, nome_pecas
-                    ORDER BY data_primeira_troca
-                ) AS numero_troca,
-                va."Model"
-            FROM trocas
-            LEFT JOIN veiculos_api va
-                ON "Description" = id_veiculo
+                *
+                FROM trocas_detalhadas
+            WHERE 
+                --km_efetivo_da_peca < 123000
+                grupo_peca NOT IN ('CONSUMO PARA FROTAS','MATERIAL DE CONSUMO', 'Pneumáticos')
+                AND sub_grupo_peca NOT IN ('Parafusos', 'Tintas')
             ORDER BY
                 nome_pecas, id_veiculo, TO_DATE(data_primeira_troca, 'YYYY-MM-DD')
             ---
             --
             --
             ) as DF
-            WHERE    DF.duracao_km_entre_trocas IS NOT NULL
+            WHERE   DF.duracao_km_entre_trocas IS NOT NULL
                     AND DF.valor_peca > 0
                     AND DF.data_primeira_troca BETWEEN '{data_inicio}' AND '{data_fim}'
                     {subquery_modelo_str}
@@ -206,6 +257,8 @@ class VidaUtilService:
                         ) - TO_DATE(data_peca, 'YYYY-MM-DD') AS duracao_dias_entre_trocas
                     FROM
                         mat_view_os_pecas_hodometro_v3 as vph
+                    where 
+	    	        valor_peca > 0 -- NÃO PEGAR as PEÇAS COM VALOR NEGATIVO
             ),
             trocas_detalhadas AS (
                 SELECT 
@@ -238,20 +291,20 @@ class VidaUtilService:
                     END AS dias_efetivo_da_peca
                 FROM trocas
                 LEFT JOIN veiculos_api va
-                    ON va."Description" = trocas.id_veiculo
+                    ON regexp_replace(va."Description", '\s*-\s*.*$', '') = trocas.id_veiculo
                 LEFT JOIN ultimo_hodometro_gps uhg 
                     ON va."AssetId" = uhg."AssetId"
                 WHERE
                     duracao_km_entre_trocas IS NOT NULL
+                    and duracao_km_entre_trocas > 0
                     AND valor_peca > 0
-                    --AND data_os BETWEEN '20250101' AND '20250501'
             )
             SELECT 
                 *
                 FROM trocas_detalhadas
             WHERE 
-                km_efetivo_da_peca < 123000
-                AND grupo_peca NOT IN ('CONSUMO PARA FROTAS','MATERIAL DE CONSUMO', 'Pneumáticos')
+                --km_efetivo_da_peca < 123000
+                grupo_peca NOT IN ('CONSUMO PARA FROTAS','MATERIAL DE CONSUMO', 'Pneumáticos')
                 AND sub_grupo_peca NOT IN ('Parafusos', 'Tintas')
                 AND data_primeira_troca BETWEEN '{data_inicio}' AND '{data_fim}'
                     {subquery_modelo_str}
