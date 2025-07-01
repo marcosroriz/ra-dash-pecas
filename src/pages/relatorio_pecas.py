@@ -57,42 +57,117 @@ lista_todos_modelos_veiculos.insert(0, {"MODELO": "TODOS"})
     [
         Input("input-intervalo-datas-pecas-os", "value"),
         Input("input-select-modelo-veiculos-relatorio-pecas", "value"),
+        Input("input-select-peca-relatorio", "value")
     ],
 )
-def tabela_relatio_peças(datas, lista_modelos):
-    if not datas or not lista_modelos:
+def tabela_relatio_peças(datas, lista_modelos, peça):
+    if not datas or not lista_modelos or not peça:
         return []
 
-    df = relatorio_pecas_util.get_pecas(datas, lista_modelos)
+    df = relatorio_pecas_util.get_pecas(datas, lista_modelos, peça)
 
     return df.to_dict('records')
 
 @callback(
-    Output("grafico-barras-qtd-valor-peças-mes", "figure"),
+    [Output("grafico-barras-qtd-peças-mes", "figure"),
+     Output("grafico-barras-valor-peças-mes", "figure")],
     [
         Input("input-intervalo-datas-pecas-os", "value"),
         Input("input-select-modelo-veiculos-relatorio-pecas", "value"),
+        Input("input-select-peca-relatorio", "value"),
+
     ],
 )
-def grafico_barras_qtd_valor_peças_mes(datas, lista_modelos):
-    if not datas or not lista_modelos:
-        return None
-
-    df = relatorio_pecas_util.get_df_graficos(datas, lista_modelos)
-
-    df['mes'] = pd.to_datetime(df['mes_ano'])
-
+def grafico_barras_qtd_valor_peças_mes(datas, lista_modelos, peça):
+    #if not datas or not lista_modelos or not peça:
+    #    return None
+    df = relatorio_pecas_util.get_df_graficos(datas, lista_modelos, peça)
+    if df.empty:
+        return go.Figure(), go.Figure()
+        
+    df['mes_ano'] = pd.to_datetime(df['mes_ano'])
+    df['mes_ano'] = df['mes_ano'].dt.strftime('%B/%Y') 
+    
     # Cria o gráfico diretamente
     fig_qtd = px.bar(df, x='mes_ano', y='qtd_pecas_para_trocar',
-             labels={'mes_ano': 'Mês', 'qtd_pecas_para_trocar': 'Qtd. Peças para Trocar'},
-             title='Quantidade de Peças para Trocar por Mês')
+             labels={'mes_ano': 'Mês', 'qtd_pecas_para_trocar': 'Qtd. peças para trocar'},
+             title='Quantidade de Peças para trocar por Mês')
     
-    return fig_qtd
+    fig_valor = px.bar(df, x='mes_ano', y='valor_esperado',
+             labels={'mes_ano': 'Mês', 'valor_esperado': 'Valor de peças para Trocar'},
+             title='Valor de Peças para trocar por Mês')
+    fig_valor.update_traces(marker_color='red')
+    
+    return fig_qtd, fig_valor
 
 
 ##############################################################################
 # Callbacks para os inputs ###################################################
 ##############################################################################
+
+@callback(
+    [
+        Output("input-select-peca-relatorio", "options"),
+        Output("input-select-peca-relatorio", "value"),
+    ],
+    [
+        Input("input-intervalo-datas-pecas-os", "value"),
+        Input("input-select-modelo-veiculos-relatorio-pecas", "value"),
+        Input("input-select-peca-relatorio", "value"),  # <- Aqui está o segredo
+    ]
+)
+def corrige_input_pecas(datas, lista_modelos, lista_pecas):
+    """
+    Atualiza as opções e o valor selecionado do dropdown de peças com base nos filtros aplicados.
+
+    Parâmetros:
+        datas (str | list): Intervalo de datas selecionado.
+        lista_modelos (list): Lista de modelos de veículos selecionados.
+        lista_pecas (list): Lista de peças selecionadas atualmente.
+
+    Retorna:
+        tuple:
+            - options (list[dict]): Lista de opções para o dropdown no formato {"label": ..., "value": ...}.
+            - value (list): Lista de valores corrigida para manter a seleção válida com base nos filtros.
+    """
+
+    if not datas or not lista_modelos:
+        return [], None
+
+    df_pecas = relatorio_pecas_util.get_pecas_input(datas, lista_modelos)
+
+    if df_pecas.empty:
+        return [], None
+
+    # Ordena pelo campo quantidade desc (maior quantidade primeiro)
+    #df_pecas = df_pecas.sort_values(by="quantidade", ascending=False)
+
+    # Monta opções com quantidade no label
+    lista_options = [
+        {"label": f"{row['nome_peça']}", "value": row['nome_peça']}
+        for _, row in df_pecas.iterrows()
+    ]
+
+    # Insere "TODAS" no topo
+    lista_options.insert(0, {"label": "TODAS", "value": "TODAS"})
+
+    # Define valor padrão como o segundo item da lista (índice 1) ou "TODAS" se não existir
+    default_valor = lista_options[1]['value'] if len(lista_options) > 1 else 'TODAS'
+
+    def corrige_input(lista, termo_all="TODAS", default=None):
+        # Aplica valor padrão apenas quando não houver lista definida (None)
+        if lista is None:
+            return [default]
+        # Se houver múltiplos incluindo "TODAS", remove "TODAS"
+        if len(lista) > 1 and termo_all in lista:
+            return [item for item in lista if item != termo_all]
+        # Retorna a própria lista (podendo ser apenas ["TODAS"])
+        return lista
+
+    # Corrige lista de peças com base na seleção do usuário
+    lista_corrigida = corrige_input(lista_pecas, termo_all="TODAS", default=default_valor)
+
+    return lista_options, lista_corrigida
 
 
 # Função para validar o input
@@ -221,33 +296,40 @@ def gera_labels_inputs(campo):
     Input("btn-exportar-tabela-relatorio-pecas", "n_clicks"),
     State("input-intervalo-datas-pecas-os", "value"),
     State("input-select-modelo-veiculos-relatorio-pecas", "value"),
+    Input("input-select-peca-relatorio", "value"),
     prevent_initial_call=True
 )
-def download_excel_tabela_vida_util_pecas(n_clicks, datas, lista_modelos):
+def download_excel_tabela_vida_util_pecas(n_clicks, datas, lista_modelos, peça):
     if not n_clicks or n_clicks <= 0:
         return dash.no_update
+    df = relatorio_pecas_util.get_pecas(datas, lista_modelos, peça)
 
+    if df.empty:
+        return go.Figure(), go.Figure()
+    
     date_now = date.today().strftime('%d-%m-%Y')
 
-    df = relatorio_pecas_util.get_pecas(datas, lista_modelos)
-    df = remover_outliers_iqr(df, "duracao_km")
-    df["duracao_km"] = df["duracao_km"].round(1)
-
-    df.rename(columns={
-    "nome_pecas": "NOME DA PEÇA",
-    "id_veiculo": "VEICULO",
-    "numero_troca": "N° TROCA",
-    "data_os": "DATA TROCA",
-    "data_proxima_troca": "DATA SEGUNDA TROCA",
-    "duracao_dias": "DURAÇÃO (DIAS)",
-    "ultimo_hodometro": "KM DA TROCA",
-    "km_proxima_troca": "KM DA SEGUNDA TROCA",
-    "duracao_km": "DURAÇÃO KM",
-    "Model": "MODELO VEICULO"
+    df.rename(columns={ 
+        "id_veiculo": "ID DO VEÍCULO",
+        "nome_pecas": "NOME DA PEÇA",
+        "modelo_veiculo": "MODELO",
+        "situacao_peca": "STATUS DA PEÇA",
+        "media_km_entre_trocas": "MÉDIA DURAÇÃO KM",
+        "data_primeira_troca": "DATA TROCA",
+        "odometro_troca": "HODÔMETRO DA TROCA",
+        "hodometro_atual_gps": "HODÔMETRO ATUAL",
+        "estimativa_odometro_proxima_troca": "HODÔMETRO DA PRÓXIMA TROCA",
+        "diferenca_entre_hodometro_estimativa_e_atual": "DIFERENÇA ESTIMATIVA E ATUAL",
+        "total_km_peca": "KM TOTAL(RODADO) DA PEÇA",
+        "ultrapassou_estimativa": "ULTRAPASSOU KM ESPERADO",
+        "media_km_diario_veiculo": "MEDIA DE KM DIÁRIO DO VEÍCULO",
+        "calculo_dias": "DIAS ATÉ A TROCA",
+        "data_estimada": "DATA ESTIMADA PARA TROCA"
     }, inplace=True)
-    
+
     excel_data = gerar_excel(df=df)
-    return dcc.send_bytes(excel_data, f"tabela_vida_util_pecas_{date_now}.xlsx")
+
+    return dcc.send_bytes(excel_data, f"tabela_relatorio_pecas_{date_now}.xlsx")
 
 
 
@@ -357,7 +439,7 @@ layout = dbc.Container(
                                                 [
                                                     dbc.Label("Peça específica"),
                                                     dcc.Dropdown(
-                                                        id="input-select-peca-vida-util",
+                                                        id="input-select-peca-relatorio",
                                                         options=[],  # começa vazio, o callback vai preencher
                                                         multi=True,
                                                         value=[],    # começa vazio, o callback define o valor inicial
@@ -391,7 +473,7 @@ layout = dbc.Container(
                                     ],
                                     align="center",
                                 ),
-                                dcc.Graph(id="grafico-barras-trocas-pecas-esperadas-mes"),
+                                dcc.Graph(id="grafico-barras-qtd-peças-mes"),
                                 dmc.Space(h=40),
                                 dbc.Row(
                                     [
@@ -412,7 +494,7 @@ layout = dbc.Container(
                                     ],
                                     align="center",
                                 ),
-                                dcc.Graph(id="grafico-barras-preco-pecas-por-mes"),
+                                dcc.Graph(id="grafico-barras-valor-peças-mes"),
                                 dmc.Space(h=40),
                                 # Tabela com as estatísticas gerais de Retrabalho
                                 dbc.Row(

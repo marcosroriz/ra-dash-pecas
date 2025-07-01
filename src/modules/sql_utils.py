@@ -48,6 +48,14 @@ def subquery_pecas2(lista_os, prefix="", termo_all="TODAS"):
 
     return f'AND {prefix}"nome_pecas" IN ({valores})'
 
+def subquery_pecas3(lista_os, prefix="", termo_all="TODAS"):
+    if not lista_os or termo_all in lista_os:
+        return ""
+    valores = ", ".join([f"'{x}'" for x in lista_os if x])  
+    if not valores:  
+        return ""
+
+    return f'AND {prefix}"nome_peça" IN ({valores})'
 
 def subquery_modelos(lista_modelos, prefix="", termo_all="TODOS"):
     query = ""
