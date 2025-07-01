@@ -7,14 +7,14 @@ tbl_relatorio_pecas = [
         "type": ["numericColumn"],
     },
     {
-        "field": "nome_pecas",
+        "field": "nome_peça",
         "headerName": "NOME DA PEÇA",
         "pinned": "left",
         "minWidth": 300,
         "type": ["numericColumn"],
     },
     {
-        "field": "Model",
+        "field": "modelo_veiculo",
         "headerName": "MODELO",
         "pinned": "left",
         "minWidth": 200,
@@ -31,28 +31,21 @@ tbl_relatorio_pecas = [
         "minWidth": 200
     },
     {
-        "field": "media_dias_troca",
-        "headerName": "MÉDIA DE DIAS",
-        "filter": "agNumberColumnFilter",
-        "minWidth": 250,
-        "type": ["numericColumn"],
-    },
-    {
-        "field": "data_proxima_troca",
-        "headerName": "DATA ÚLTIMA TROCA",
+        "field": "data_primeira_troca",
+        "headerName": "DATA TROCA",
         "filter": "agNumberColumnFilter",
         "maxWidth": 250,
         "type": ["numericColumn"],
     },
     {
-        "field": "km_proxima_troca",
-        "headerName": "HODÔMETRO DA ÚLTIMA TROCA",
+        "field": "odometro_troca",
+        "headerName": "HODÔMETRO DA TROCA",
         "filter": "agNumberColumnFilter",
         "minWidth": 250,
         "type": ["numericColumn"],
     },
     {
-        "field": "odometro_atual_frota",
+        "field": "hodometro_atual_gps",
         "headerName": "HODÔMETRO ATUAL",
         "wrapHeaderText": True,
         "autoHeaderHeight": True,
@@ -75,11 +68,35 @@ tbl_relatorio_pecas = [
         "type": ["numericColumn"],
     },
     {
+        "field": "total_km_peca",
+        "headerName": "KM TOTAL(RODADO) DA PEÇA",
+        "filter": "agNumberColumnFilter",
+        "minWidth": 250,
+        "type": ["numericColumn"],
+    },
+    {
         "field": "ultrapassou_estimativa",
         "headerName": "ULTRAPASSOU KM ESPERADO",
-        "cellRenderer": "agCheckboxCellRenderer",  # ← renderiza como checkbox
         "minWidth": 250,
-        "type": ["booleanColumn"],  # ← tipo booleano
-        "editable": False,          # ← checkbox apenas visual (sem edição)
+        "type": ["numericColumn"]  # ← tipo booleano    
     },
+    {
+        "field": "media_km_diario_veiculo",
+        "headerName": "MEDIA DE KM DIÁRIO DO VEÍCULO",
+        "minWidth": 250,
+        "type": ["numericColumn"]
+    },
+    {
+        "field": "calculo_dias", 
+        "headerName": "DIAS ATÉ A TROCA",
+        "minWidth": 250,
+        "type": ["numericColumn"]
+    },
+        {
+        "field": "data_estimada", 
+        "headerName": "DATA ESTIMADA PARA TROCA",
+        "minWidth": 250,
+        "type": ["numericColumn"]
+    }
+
 ] 
