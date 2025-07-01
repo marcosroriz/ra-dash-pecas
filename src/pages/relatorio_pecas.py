@@ -59,13 +59,35 @@ lista_todos_modelos_veiculos.insert(0, {"MODELO": "TODOS"})
         Input("input-select-modelo-veiculos-relatorio-pecas", "value"),
     ],
 )
-def grafico_e_df_boxplot_pecas(datas, lista_modelos):
+def tabela_relatio_peças(datas, lista_modelos):
     if not datas or not lista_modelos:
         return []
 
     df = relatorio_pecas_util.get_pecas(datas, lista_modelos)
 
     return df.to_dict('records')
+
+@callback(
+    Output("grafico-barras-qtd-valor-peças-mes", "figure"),
+    [
+        Input("input-intervalo-datas-pecas-os", "value"),
+        Input("input-select-modelo-veiculos-relatorio-pecas", "value"),
+    ],
+)
+def grafico_barras_qtd_valor_peças_mes(datas, lista_modelos):
+    if not datas or not lista_modelos:
+        return None
+
+    df = relatorio_pecas_util.get_df_graficos(datas, lista_modelos)
+
+    df['mes'] = pd.to_datetime(df['mes_ano'])
+
+    # Cria o gráfico diretamente
+    fig_qtd = px.bar(df, x='mes_ano', y='qtd_pecas_para_trocar',
+             labels={'mes_ano': 'Mês', 'qtd_pecas_para_trocar': 'Qtd. Peças para Trocar'},
+             title='Quantidade de Peças para Trocar por Mês')
+    
+    return fig_qtd
 
 
 ##############################################################################
