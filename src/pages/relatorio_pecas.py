@@ -349,27 +349,28 @@ layout = dbc.Container(
                                     ),
                                     md=12,
                                 ),
-                                dmc.Space(h=40),
-                                dbc.Row(
-                                    [
-                                        dbc.Col(DashIconify(icon="mdi:chart-line", width=45), width="auto"),
-                                        dbc.Col(
-                                            dbc.Row(
+                                dmc.Space(h=10),
+                                dbc.Col(
+                                    dbc.Card(
+                                        [
+                                            html.Div(
                                                 [
-                                                    html.H4(
-                                                        "Preço por mês",
-                                                        className="align-self-center",
+                                                    dbc.Label("Peça específica"),
+                                                    dcc.Dropdown(
+                                                        id="input-select-peca-vida-util",
+                                                        options=[],  # começa vazio, o callback vai preencher
+                                                        multi=True,
+                                                        value=[],    # começa vazio, o callback define o valor inicial
+                                                        placeholder="Selecione uma ou mais peças específicas...",
                                                     ),
-                                                    dmc.Space(h=5),
-                                                    gera_labels_inputs("preco-pecas-por-mes"),
-                                                ]
+                                                ],
+                                                className="dash-bootstrap",
                                             ),
-                                            width=True,
-                                        ),
-                                    ],
-                                    align="center",
+                                        ],
+                                        body=True,
+                                    ),
+                                    md=12,
                                 ),
-                                dcc.Graph(id="grafico-barras-preco-pecas-por-mes"),
                                 dmc.Space(h=40),
                                 dbc.Row(
                                     [
@@ -392,7 +393,27 @@ layout = dbc.Container(
                                 ),
                                 dcc.Graph(id="grafico-barras-trocas-pecas-esperadas-mes"),
                                 dmc.Space(h=40),
-                                
+                                dbc.Row(
+                                    [
+                                        dbc.Col(DashIconify(icon="mdi:chart-line", width=45), width="auto"),
+                                        dbc.Col(
+                                            dbc.Row(
+                                                [
+                                                    html.H4(
+                                                        "Preço esperadas por mês",
+                                                        className="align-self-center",
+                                                    ),
+                                                    dmc.Space(h=5),
+                                                    gera_labels_inputs("preco-pecas-por-mes"),
+                                                ]
+                                            ),
+                                            width=True,
+                                        ),
+                                    ],
+                                    align="center",
+                                ),
+                                dcc.Graph(id="grafico-barras-preco-pecas-por-mes"),
+                                dmc.Space(h=40),
                                 # Tabela com as estatísticas gerais de Retrabalho
                                 dbc.Row(
                                     [
