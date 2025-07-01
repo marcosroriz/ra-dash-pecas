@@ -299,7 +299,7 @@ layout = dbc.Container(
                                     ),
                                     md=12,
                                 ),
-                                dmc.Space(h=10),
+                                dmc.Space(h=10), 
                                 dbc.Col(
                                     dbc.Card(
                                         [
@@ -328,6 +328,49 @@ layout = dbc.Container(
                                     md=12,
                                 ),
                                 dmc.Space(h=40),
+                                dbc.Row(
+                                    [
+                                        dbc.Col(DashIconify(icon="mdi:chart-line", width=45), width="auto"),
+                                        dbc.Col(
+                                            dbc.Row(
+                                                [
+                                                    html.H4(
+                                                        "Preço por mês",
+                                                        className="align-self-center",
+                                                    ),
+                                                    dmc.Space(h=5),
+                                                    gera_labels_inputs("preco-pecas-por-mes"),
+                                                ]
+                                            ),
+                                            width=True,
+                                        ),
+                                    ],
+                                    align="center",
+                                ),
+                                dcc.Graph(id="grafico-barras-preco-pecas-por-mes"),
+                                dmc.Space(h=40),
+                                dbc.Row(
+                                    [
+                                        dbc.Col(DashIconify(icon="mdi:chart-line", width=45), width="auto"),
+                                        dbc.Col(
+                                            dbc.Row(
+                                                [
+                                                    html.H4(
+                                                        "Trocas esperadas por mês",
+                                                        className="align-self-center",
+                                                    ),
+                                                    dmc.Space(h=5),
+                                                    gera_labels_inputs("pecas-esperadas-mes"),
+                                                ]
+                                            ),
+                                            width=True,
+                                        ),
+                                    ],
+                                    align="center",
+                                ),
+                                dcc.Graph(id="grafico-barras-trocas-pecas-esperadas-mes"),
+                                dmc.Space(h=40),
+                                
                                 # Tabela com as estatísticas gerais de Retrabalho
                                 dbc.Row(
                                     [
