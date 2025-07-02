@@ -609,6 +609,7 @@ layout = dbc.Container(
                                             },
                                         # Permite resize --> https://community.plotly.com/t/anyone-have-better-ag-grid-resizing-scheme/78398/5
                                         style={"height": 400, "resize": "vertical", "overflow": "hidden"},
+                                        dangerously_allow_code=True, 
                                     ),
                                 dmc.Space(h=40),
                             ]

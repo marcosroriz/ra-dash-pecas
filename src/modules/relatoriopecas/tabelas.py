@@ -21,9 +21,49 @@ tbl_relatorio_pecas = [
         "type": ["numericColumn"],
     },
     {
-        "field": "situacao_peca",  
-        "headerName": "STATUS DA PEÇA",
-        "minWidth": 200
+    "field": "situacao_peca",
+    "headerName": "STATUS DA PEÇA",
+    "minWidth": 150,
+    "cellStyle": {
+        "styleConditions": [
+                {
+                    "condition": "params.value === 'Vermelho'",
+                    "style": {
+                        "backgroundColor": "#e74c3c",
+                        "color": "white",
+                        "fontWeight": "bold",
+                        "textAlign": "center"
+                    }
+                },
+                {
+                    "condition": "params.value === 'Verde'",
+                    "style": {
+                        "backgroundColor": "#2ecc71",
+                        "color": "white",
+                        "fontWeight": "bold",
+                        "textAlign": "center"
+                    }
+                },
+                {
+                    "condition": "params.value === 'Amarelo'",
+                    "style": {
+                        "backgroundColor": "#f1c40f",
+                        "color": "black",
+                        "fontWeight": "bold",
+                        "textAlign": "center"
+                    }
+                },
+                {
+                    "condition": "params.value === 'Laranja'",
+                    "style": {
+                        "backgroundColor": "#e67e22",
+                        "color": "white",
+                        "fontWeight": "bold",
+                        "textAlign": "center"
+                    }
+                }
+            ]
+        }
     },
     {
         "field": "media_km_entre_trocas", 

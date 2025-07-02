@@ -89,15 +89,28 @@ def grafico_barras_qtd_valor_peças_mes(datas, lista_modelos, peça):
     df['mes_ano'] = df['mes_ano'].dt.strftime('%B/%Y') 
     
     # Cria o gráfico diretamente
-    fig_qtd = px.bar(df, x='mes_ano', y='qtd_pecas_para_trocar',
-             labels={'mes_ano': 'Mês', 'qtd_pecas_para_trocar': 'Qtd. peças para trocar'},
-             title='Quantidade de Peças para trocar por Mês')
+    fig_qtd = px.bar(
+    df,
+    x='mes_ano',
+    y='qtd_pecas_para_trocar',
+    labels={'mes_ano': 'Mês', 'qtd_pecas_para_trocar': 'Qtd. peças para trocar'},
+    title='Quantidade de Peças para trocar por Mês'
+    )
+    fig_qtd.update_traces(
+        hovertemplate="<b>Mês:</b> %{x}<br><b>Qtd. peças:</b> %{y}<extra></extra>"
+    )
     
-    fig_valor = px.bar(df, x='mes_ano', y='valor_esperado',
-             labels={'mes_ano': 'Mês', 'valor_esperado': 'Valor de peças para Trocar'},
-             title='Valor de Peças para trocar por Mês')
-    fig_valor.update_traces(marker_color='red')
-    
+    fig_valor = px.bar(
+    df,
+    x='mes_ano',
+    y='valor_esperado',
+    labels={'mes_ano': 'Mês', 'valor_esperado': 'Valor de peças para Trocar'},
+    title='Valor de Peças para trocar por Mês'
+    )
+    fig_valor.update_traces(
+        marker_color='red',
+        hovertemplate="<b>Mês:</b> %{x}<br><b>Valor esperado:</b> R$ %{y:,.2f}<extra></extra>"
+    )
     return fig_qtd, fig_valor
 
 
