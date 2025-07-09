@@ -573,7 +573,39 @@ layout = dbc.Container(
                                         style={"height": 400, "resize": "vertical", "overflow": "hidden"},
                                         dangerously_allow_code=True,
                                     ),
-                                dmc.Space(h=40),
+                                dmc.Space(h=20),
+                                html.Div(
+                                    [
+                                        html.Div([
+                                            html.Span("●", style={"color": "#2ecc71", "fontSize": "24px", "marginRight": "12px"}),
+                                            html.Span("Verde — Dentro da estimativa", style={"fontSize": "18px"})
+                                        ], style={"marginRight": "40px"}),
+
+                                        html.Div([
+                                            html.Span("●", style={"color": "#f1c40f", "fontSize": "24px", "marginRight": "12px"}),
+                                            html.Span("Amarelo — Maior que 65%", style={"fontSize": "18px"})
+                                        ], style={"marginRight": "40px"}),
+
+                                        html.Div([
+                                            html.Span("●", style={"color": "#e67e22", "fontSize": "24px", "marginRight": "12px"}),
+                                            html.Span("Laranja — Maior que 90%", style={"fontSize": "18px"})
+                                        ], style={"marginRight": "40px"}),
+
+                                        html.Div([
+                                            html.Span("●", style={"color": "#e74c3c", "fontSize": "24px", "marginRight": "12px"}),
+                                            html.Span("Vermelho — Ultrapassou o limite", style={"fontSize": "18px"})
+                                        ])
+                                    ],
+                                    style={
+                                        "display": "flex",
+                                        "flexWrap": "wrap",
+                                        "justifyContent": "center",
+                                        "alignItems": "center",
+                                        "marginTop": "30px",
+                                        "gap": "20px"
+                                    }
+                                ),
+                                dmc.Space(h=50),
                             ]
                         ),
                     ],
