@@ -21,7 +21,7 @@ tbl_relatorio_pecas = [
         "type": ["numericColumn"],
     },
     {
-    "field": "situacao_peca",
+    "field": "situacao_peca_porcentagem",
     "headerName": "STATUS DA PEÇA",
     "minWidth": 150,
     "cellStyle": {
@@ -54,7 +54,7 @@ tbl_relatorio_pecas = [
                     }
                 },
                 {
-                    "condition": "params.value === 'Laranja'",
+                    "condition": "params.value.split(' -')[0].trim() === 'Laranja'",
                     "style": {
                         "backgroundColor": "#e67e22",
                         "color": "white",
@@ -62,8 +62,14 @@ tbl_relatorio_pecas = [
                         "textAlign": "center"
                     }
                 }
+                
             ]
         }
+    },
+    {
+        "field": "porcentagem_vida_util", 
+        "headerName": "PORCENTAGEM VIDA ÚTIL",
+        "minWidth": 200
     },
     {
         "field": "media_km_entre_trocas", 
