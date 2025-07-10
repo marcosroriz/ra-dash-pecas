@@ -21,13 +21,16 @@ tbl_relatorio_pecas = [
         "type": ["numericColumn"],
     },
     {
-    "field": "situacao_peca_porcentagem",
-    "headerName": "STATUS DA PEÇA",
-    "minWidth": 150,
-    "cellStyle": {
-        "styleConditions": [
+        "field": "situacao_peca_porcentagem",
+        "headerName": "STATUS DA PEÇA",
+        "minWidth": 150,
+        "valueFormatter": {
+            "function": "if (!params.value) return ''; const parts = params.value.split(' - '); return parts[0] + ' - ' + parts[1] + '%';"
+        },
+        "cellStyle": {
+            "styleConditions": [
                 {
-                    "condition": "params.value === 'Vermelho'",
+                    "condition": "params.value && params.value.split(' -')[0].trim() === 'Vermelho'",
                     "style": {
                         "backgroundColor": "#e74c3c",
                         "color": "white",
@@ -36,7 +39,7 @@ tbl_relatorio_pecas = [
                     }
                 },
                 {
-                    "condition": "params.value === 'Verde'",
+                    "condition": "params.value && params.value.split(' -')[0].trim() === 'Verde'",
                     "style": {
                         "backgroundColor": "#2ecc71",
                         "color": "white",
@@ -45,7 +48,7 @@ tbl_relatorio_pecas = [
                     }
                 },
                 {
-                    "condition": "params.value === 'Amarelo'",
+                    "condition": "params.value && params.value.split(' -')[0].trim() === 'Amarelo'",
                     "style": {
                         "backgroundColor": "#f1c40f",
                         "color": "black",
@@ -54,7 +57,7 @@ tbl_relatorio_pecas = [
                     }
                 },
                 {
-                    "condition": "params.value.split(' -')[0].trim() === 'Laranja'",
+                    "condition": "params.value && params.value.split(' -')[0].trim() === 'Laranja'",
                     "style": {
                         "backgroundColor": "#e67e22",
                         "color": "white",
@@ -62,7 +65,6 @@ tbl_relatorio_pecas = [
                         "textAlign": "center"
                     }
                 }
-                
             ]
         }
     },
