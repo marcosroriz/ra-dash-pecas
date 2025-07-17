@@ -578,7 +578,7 @@ layout = dbc.Container(
                                     [
                                         html.Div([
                                             html.Span("●", style={"color": "#2ecc71", "fontSize": "24px", "marginRight": "12px"}),
-                                            html.Span("Verde — Dentro da estimativa", style={"fontSize": "18px"})
+                                            html.Span("Verde — Dentro da estimativa - Menor que 65%", style={"fontSize": "18px"})
                                         ], style={"marginRight": "40px"}),
 
                                         html.Div([

@@ -486,7 +486,7 @@ class RelatorioPecasService:
                     ),
         calculo_previsao_dia as (
                     select *,
-                    CONCAT(situacao_peca, ' - ', porcentagem_vida_util) AS situacao_peca_porcentagem,
+                    CONCAT(situacao_peca, ' - ', porcentagem_vida_util, '%%') AS situacao_peca_porcentagem,
                     CASE 
                         WHEN 0 < diferenca_entre_hodometro_estimativa_e_atual THEN round(diferenca_entre_hodometro_estimativa_e_atual / media_km_diario_veiculo)
                         ELSE round(diferenca_entre_hodometro_estimativa_e_atual / media_km_diario_veiculo)
@@ -499,7 +499,8 @@ class RelatorioPecasService:
                     from estimativa
                     --where flag_ultima_troca = '1' -- ATENÇÃO NA ULTIMA TROCA (1 = ULTIMA TROCA, 2= PNEULTIMA TROCA, ...)
         )
-        select * from calculo_previsao_dia
+        select *
+          from calculo_previsao_dia
         where 
             flag_ultima_troca = '1'
             AND data_primeira_troca BETWEEN '{data_inicio}' AND '{data_fim}'

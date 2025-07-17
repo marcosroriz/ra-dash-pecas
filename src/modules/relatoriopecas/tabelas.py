@@ -5,6 +5,8 @@ tbl_relatorio_pecas = [
         "pinned": "left",
         "minWidth": 100,
         "type": ["numericColumn"],
+        "headerClass": "ag-center-header",
+        "cellStyle": {"textAlign": "center"}
     },
     {
         "field": "nome_peça",
@@ -12,6 +14,8 @@ tbl_relatorio_pecas = [
         "pinned": "left",
         "minWidth": 300,
         "type": ["numericColumn"],
+        "headerClass": "ag-center-header",
+        "cellStyle": {"textAlign": "center"}
     },
     {
         "field": "modelo_veiculo",
@@ -19,14 +23,14 @@ tbl_relatorio_pecas = [
         "pinned": "left",
         "minWidth": 200,
         "type": ["numericColumn"],
+        "headerClass": "ag-center-header",
+        "cellStyle": {"textAlign": "center"}
     },
     {
         "field": "situacao_peca_porcentagem",
         "headerName": "STATUS DA PEÇA",
         "minWidth": 150,
-        "valueFormatter": {
-            "function": "if (!params.value) return ''; const parts = params.value.split(' - '); return parts[0] + ' - ' + parts[1] + '%';"
-        },
+        "headerClass": "ag-center-header",
         "cellStyle": {
             "styleConditions": [
                 {
@@ -69,14 +73,11 @@ tbl_relatorio_pecas = [
         }
     },
     {
-        "field": "porcentagem_vida_util", 
-        "headerName": "PORCENTAGEM VIDA ÚTIL",
-        "minWidth": 200
-    },
-    {
-        "field": "media_km_entre_trocas", 
+        "field": "media_km_entre_trocas",
         "headerName": "MÉDIA DURAÇÃO KM",
-        "minWidth": 200
+        "minWidth": 200,
+        "headerClass": "ag-center-header",
+        "cellStyle": {"textAlign": "center"}
     },
     {
         "field": "data_primeira_troca",
@@ -84,6 +85,8 @@ tbl_relatorio_pecas = [
         "filter": "agNumberColumnFilter",
         "maxWidth": 250,
         "type": ["numericColumn"],
+        "headerClass": "ag-center-header",
+        "cellStyle": {"textAlign": "center"}
     },
     {
         "field": "odometro_troca",
@@ -91,6 +94,8 @@ tbl_relatorio_pecas = [
         "filter": "agNumberColumnFilter",
         "minWidth": 250,
         "type": ["numericColumn"],
+        "headerClass": "ag-center-header",
+        "cellStyle": {"textAlign": "center"}
     },
     {
         "field": "hodometro_atual_gps",
@@ -100,6 +105,8 @@ tbl_relatorio_pecas = [
         "minWidth": 250,
         "filter": "agNumberColumnFilter",
         "type": ["numericColumn"],
+        "headerClass": "ag-center-header",
+        "cellStyle": {"textAlign": "center"}
     },
     {
         "field": "estimativa_odometro_proxima_troca",
@@ -107,6 +114,8 @@ tbl_relatorio_pecas = [
         "filter": "agNumberColumnFilter",
         "minWidth": 250,
         "type": ["numericColumn"],
+        "headerClass": "ag-center-header",
+        "cellStyle": {"textAlign": "center"}
     },
     {
         "field": "diferenca_entre_hodometro_estimativa_e_atual",
@@ -114,37 +123,48 @@ tbl_relatorio_pecas = [
         "filter": "agNumberColumnFilter",
         "minWidth": 250,
         "type": ["numericColumn"],
+        "headerClass": "ag-center-header",
+        "cellStyle": {"textAlign": "center"}
     },
     {
         "field": "total_km_peca",
-        "headerName": "KM TOTAL(RODADO) DA PEÇA",
+        "headerName": "KM TOTAL (RODADO) DA PEÇA",
         "filter": "agNumberColumnFilter",
         "minWidth": 250,
         "type": ["numericColumn"],
+        "headerClass": "ag-center-header",
+        "cellStyle": {"textAlign": "center"}
     },
     {
         "field": "ultrapassou_estimativa",
         "headerName": "ULTRAPASSOU KM ESPERADO",
         "minWidth": 250,
-        "type": ["numericColumn"]  # ← tipo booleano    
+        "type": ["numericColumn"],
+        "headerClass": "ag-center-header",
+        "cellStyle": {"textAlign": "center"}
     },
     {
         "field": "media_km_diario_veiculo",
-        "headerName": "MEDIA DE KM DIÁRIO DO VEÍCULO",
+        "headerName": "MÉDIA DE KM DIÁRIO DO VEÍCULO",
         "minWidth": 250,
-        "type": ["numericColumn"]
+        "type": ["numericColumn"],
+        "headerClass": "ag-center-header",
+        "cellStyle": {"textAlign": "center"}
     },
     {
-        "field": "calculo_dias", 
+        "field": "calculo_dias",
         "headerName": "DIAS ATÉ A TROCA",
         "minWidth": 250,
-        "type": ["numericColumn"]
+        "type": ["numericColumn"],
+        "headerClass": "ag-center-header",
+        "cellStyle": {"textAlign": "center"}
     },
-        {
-        "field": "data_estimada", 
+    {
+        "field": "data_estimada",
         "headerName": "DATA ESTIMADA PARA TROCA",
         "minWidth": 250,
-        "type": ["numericColumn"]
+        "type": ["numericColumn"],
+        "headerClass": "ag-center-header",
+        "cellStyle": {"textAlign": "center"}
     }
-
-] 
+]
