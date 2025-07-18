@@ -606,7 +606,7 @@ layout = dbc.Container(
                                         dangerously_allow_code=True,
                                     ),
                                 dmc.Space(h=20),
-                                html.H6("Legenda: Status da Peça", style={"marginBottom": "5px"}),
+                                html.H6("Legenda: Status da Peça (Vida útil total)", style={"marginBottom": "5px"}),
                                 html.Div(
                                     [
                                         html.Div([
