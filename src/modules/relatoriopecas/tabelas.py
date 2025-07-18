@@ -80,6 +80,13 @@ tbl_relatorio_pecas = [
         "cellStyle": {"textAlign": "center"}
     },
     {
+        "field": "qtd_amostras_media",
+        "headerName": "QTD AMOSTRAS MÉDIA",
+        "minWidth": 200,
+        "headerClass": "ag-center-header",
+        "cellStyle": {"textAlign": "center"}
+    },
+    {
         "field": "data_primeira_troca",
         "headerName": "DATA TROCA",
         "filter": "agNumberColumnFilter",

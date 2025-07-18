@@ -98,6 +98,7 @@ class RelatorioPecasService:
                         quantidade_peca as quantidade_troca_1,
                         valor_peca,
                         status_veiculo,
+                        numero_os,
                         LEAD(quantidade_peca) OVER (
                             PARTITION BY id_veiculo, nome_pecas
                             ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
@@ -131,8 +132,8 @@ class RelatorioPecasService:
                 SELECT 
                     trocas.*,
                     ROW_NUMBER() OVER (
-                        PARTITION BY id_veiculo, codigo_peca
-                        ORDER BY data_primeira_troca
+                    PARTITION BY id_veiculo, codigo_peca
+                    ORDER BY data_primeira_troca DESC, numero_os DESC
                     ) AS numero_troca,
                     CASE 
                         WHEN duracao_km_entre_trocas is NOT NULL 
@@ -353,8 +354,9 @@ class RelatorioPecasService:
                     quantidade_peca as quantidade_troca_1,
                     valor_peca,
                     status_veiculo,
+                    numero_os,
                     LEAD(quantidade_peca) OVER (
-                        PARTITION BY id_veiculo, nome_pecas
+                        PARTITION BY id_veiculo, codigo_peca
                         ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
                     ) AS quantidade_troca_2,
                     LEAD(ultimo_hodometro) OVER (
@@ -387,8 +389,8 @@ class RelatorioPecasService:
                 trocas.*,
                 ROW_NUMBER() OVER (
                     PARTITION BY id_veiculo, codigo_peca
-                    ORDER BY data_primeira_troca
-                ) AS numero_troca,
+                    ORDER BY data_primeira_troca DESC, numero_os DESC
+                    ) AS numero_troca,
                 CASE 
                     WHEN duracao_km_entre_trocas is NOT NULL 
                     THEN 'TEVE PAR'
@@ -611,8 +613,9 @@ class RelatorioPecasService:
                         quantidade_peca as quantidade_troca_1,
                         valor_peca,
                         status_veiculo,
+                        numero_os,
                         LEAD(quantidade_peca) OVER (
-                            PARTITION BY id_veiculo, nome_pecas
+                            PARTITION BY id_veiculo, codigo_peca
                             ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
                         ) AS quantidade_troca_2,
                         LEAD(ultimo_hodometro) OVER (
@@ -644,8 +647,8 @@ class RelatorioPecasService:
                 SELECT 
                     trocas.*,
                     ROW_NUMBER() OVER (
-                        PARTITION BY id_veiculo, codigo_peca
-                        ORDER BY data_primeira_troca
+                    PARTITION BY id_veiculo, codigo_peca
+                    ORDER BY data_primeira_troca DESC, numero_os DESC
                     ) AS numero_troca,
                     CASE 
                         WHEN duracao_km_entre_trocas is NOT NULL 

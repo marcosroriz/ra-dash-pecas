@@ -53,7 +53,8 @@ lista_todos_modelos_veiculos.insert(0, {"MODELO": "TODOS"})
 ##############################################################################
 
 @callback(
-    Output("tabela-relatorio-pecas-gerais", "rowData"),
+    [Output("tabela-relatorio-pecas-gerais", "rowData"),
+     Output("boxplot-vida-util-total-pecas", "figure")],
     [
         Input("input-intervalo-datas-pecas-os", "value"),
         Input("input-select-modelo-veiculos-relatorio-pecas", "value"),
@@ -62,11 +63,21 @@ lista_todos_modelos_veiculos.insert(0, {"MODELO": "TODOS"})
 )
 def tabela_relatio_peças(datas, lista_modelos, peça):
     if not datas or not lista_modelos or not peça:
-        return []
+        return [], go.Figure()
 
     df = relatorio_pecas_util.get_pecas(datas, lista_modelos, peça)
 
-    return df.to_dict('records')
+
+    fig = px.box(df, x="nome_peça", y="total_km_peca")
+
+    fig.update_layout(
+        xaxis_title="Peça",
+        yaxis_title="Duração (km)",
+        boxmode="group",
+        template="plotly_white"
+    )
+
+    return df.to_dict('records'), fig
 
 @callback(
     [Output("grafico-barras-qtd-peças-mes", "figure"),
@@ -509,6 +520,27 @@ layout = dbc.Container(
                                 ),
                                 dcc.Graph(id="grafico-barras-valor-peças-mes"),
                                 dmc.Space(h=40),
+                                dbc.Row(
+                                    [
+                                        dbc.Col(DashIconify(icon="mdi:chart-line", width=45), width="auto"),
+                                        dbc.Col(
+                                            dbc.Row(
+                                                [
+                                                    html.H4(
+                                                        "Boxplot vida útil total das peças",
+                                                        className="align-self-center",
+                                                    ),
+                                                    dmc.Space(h=5),
+                                                    gera_labels_inputs("vida-util--total-das-pecas"),
+                                                ]
+                                            ),
+                                            width=True,
+                                        ),
+                                    ],
+                                    align="center",
+                                ),
+                                dcc.Graph(id="boxplot-vida-util-total-pecas"),
+                                dmc.Space(h=40),
                                 # Tabela com as estatísticas gerais de Retrabalho
                                 dbc.Row(
                                     [
@@ -574,6 +606,7 @@ layout = dbc.Container(
                                         dangerously_allow_code=True,
                                     ),
                                 dmc.Space(h=20),
+                                html.H6("Legenda: Status da Peça", style={"marginBottom": "5px"}),
                                 html.Div(
                                     [
                                         html.Div([
@@ -601,7 +634,7 @@ layout = dbc.Container(
                                         "flexWrap": "wrap",
                                         "justifyContent": "center",
                                         "alignItems": "center",
-                                        "marginTop": "30px",
+                                        "marginTop": "5px",
                                         "gap": "20px"
                                     }
                                 ),
