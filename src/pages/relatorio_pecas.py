@@ -415,9 +415,9 @@ layout = dbc.Container(
                                                         id="input-intervalo-datas-pecas-os",
                                                         allowSingleDateInRange=True,
                                                         type="range",
-                                                        minDate=date(2024, 8, 1),
+                                                        minDate=date(2024, 1, 1),
                                                         maxDate=date.today(),
-                                                        value=[date(2024, 8, 1), date.today()],
+                                                        value=[date(2024, 1, 1), date.today()],
                                                     ),
                                                 ],
                                                 className="dash-bootstrap",
@@ -606,27 +606,27 @@ layout = dbc.Container(
                                         dangerously_allow_code=True,
                                     ),
                                 dmc.Space(h=20),
-                                html.H6("Legenda: Status da Peça (Vida útil total)", style={"marginBottom": "5px"}),
+                                html.H6("Legenda: Classificação (Vida útil consumida)", style={"marginBottom": "5px"}),
                                 html.Div(
                                     [
                                         html.Div([
                                             html.Span("●", style={"color": "#2ecc71", "fontSize": "24px", "marginRight": "12px"}),
-                                            html.Span("Verde — Dentro da estimativa - Menor que 65%", style={"fontSize": "18px"})
+                                            html.Span("A — Dentro da estimativa - Menor que 65%", style={"fontSize": "18px"})
                                         ], style={"marginRight": "40px"}),
 
                                         html.Div([
                                             html.Span("●", style={"color": "#f1c40f", "fontSize": "24px", "marginRight": "12px"}),
-                                            html.Span("Amarelo — Maior que 65%", style={"fontSize": "18px"})
+                                            html.Span("B — Maior que 65%", style={"fontSize": "18px"})
                                         ], style={"marginRight": "40px"}),
 
                                         html.Div([
                                             html.Span("●", style={"color": "#e67e22", "fontSize": "24px", "marginRight": "12px"}),
-                                            html.Span("Laranja — Maior que 90%", style={"fontSize": "18px"})
+                                            html.Span("C — Maior que 90%", style={"fontSize": "18px"})
                                         ], style={"marginRight": "40px"}),
 
                                         html.Div([
                                             html.Span("●", style={"color": "#e74c3c", "fontSize": "24px", "marginRight": "12px"}),
-                                            html.Span("Vermelho — Ultrapassou o limite", style={"fontSize": "18px"})
+                                            html.Span("D — Ultrapassou o limite", style={"fontSize": "18px"})
                                         ])
                                     ],
                                     style={

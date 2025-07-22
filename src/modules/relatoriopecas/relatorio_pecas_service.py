@@ -464,12 +464,12 @@ class RelatorioPecasService:
                             ELSE FALSE
                         END AS ultrapassou_estimativa,
                     CASE 
-                            WHEN p.hodometro_atual_gps > (p.odometro_primeira_troca + mp.media_km_entre_trocas) THEN 'Vermelho'
-                            WHEN p.hodometro_atual_gps > (p.odometro_primeira_troca + mp.media_km_entre_trocas * 0.9) THEN 'Laranja'
-                            WHEN p.hodometro_atual_gps > (p.odometro_primeira_troca + mp.media_km_entre_trocas * 0.65) THEN 'Amarelo'
-                            WHEN p.hodometro_atual_gps < (p.odometro_primeira_troca + mp.media_km_entre_trocas * 0.65) THEN 'Verde'
-                            ELSE 'Vermelho'
-                        END AS situacao_peca,
+                            WHEN p.hodometro_atual_gps > (p.odometro_primeira_troca + mp.media_km_entre_trocas) THEN 'D'
+                            WHEN p.hodometro_atual_gps > (p.odometro_primeira_troca + mp.media_km_entre_trocas * 0.9) THEN 'C'
+                            WHEN p.hodometro_atual_gps > (p.odometro_primeira_troca + mp.media_km_entre_trocas * 0.65) THEN 'B'
+                            WHEN p.hodometro_atual_gps < (p.odometro_primeira_troca + mp.media_km_entre_trocas * 0.65) THEN 'A'
+                            ELSE 'D'
+                        END AS class_peca,
                         ROUND((((p.hodometro_atual_gps - p.odometro_primeira_troca) * 100.0) / mp.media_km_entre_trocas)::numeric, 1) AS porcentagem_vida_util,
                         ROW_NUMBER() OVER (
                                 PARTITION BY p.id_veiculo, p.nome_pecas
@@ -488,7 +488,8 @@ class RelatorioPecasService:
                     ),
         calculo_previsao_dia as (
                     select *,
-                    CONCAT(situacao_peca, ' - ', porcentagem_vida_util, '%%') AS situacao_peca_porcentagem,
+                    --CONCAT(porcentagem_vida_util, '%%') AS situacao_peca_porcentagem,
+                    porcentagem_vida_util AS situacao_peca_porcentagem,
                     CASE 
                         WHEN 0 < diferenca_entre_hodometro_estimativa_e_atual THEN round(diferenca_entre_hodometro_estimativa_e_atual / media_km_diario_veiculo)
                         ELSE round(diferenca_entre_hodometro_estimativa_e_atual / media_km_diario_veiculo)
@@ -723,10 +724,10 @@ class RelatorioPecasService:
                                 ELSE FALSE
                             END AS ultrapassou_estimativa,
                         CASE 
-                                WHEN p.hodometro_atual_gps > (mp.media_km_entre_trocas + p.odometro_primeira_troca) THEN 'Vermelho'
-                                WHEN p.hodometro_atual_gps > (p.odometro_primeira_troca + mp.media_km_entre_trocas * 0.9) THEN 'Laranja'
-                                WHEN p.hodometro_atual_gps > (p.odometro_primeira_troca + mp.media_km_entre_trocas * 0.65) THEN 'Amarelo'
-                                ELSE 'Verde'
+                                WHEN p.hodometro_atual_gps > (mp.media_km_entre_trocas + p.odometro_primeira_troca) THEN 'D'
+                                WHEN p.hodometro_atual_gps > (p.odometro_primeira_troca + mp.media_km_entre_trocas * 0.9) THEN 'C'
+                                WHEN p.hodometro_atual_gps > (p.odometro_primeira_troca + mp.media_km_entre_trocas * 0.65) THEN 'B'
+                                ELSE 'A'
                             END AS situacao_peca,
                             ROW_NUMBER() OVER (
                                     PARTITION BY p.id_veiculo, p.nome_pecas
