@@ -485,7 +485,7 @@ layout = dbc.Container(
                                             dbc.Row(
                                                 [
                                                     html.H4(
-                                                        "Trocas esperadas por mês",
+                                                        "Trocas futuras esperadas por mês",
                                                         className="align-self-center",
                                                     ),
                                                     dmc.Space(h=5),
@@ -506,7 +506,7 @@ layout = dbc.Container(
                                             dbc.Row(
                                                 [
                                                     html.H4(
-                                                        "Preço esperadas por mês",
+                                                        "Custo esperado por mês",
                                                         className="align-self-center",
                                                     ),
                                                     dmc.Space(h=5),

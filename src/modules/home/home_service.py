@@ -140,7 +140,7 @@ class HomeService:
 
             query = f"""
                 WITH cte AS (
-                    SELECT DISTINCT ON ("id")
+                    SELECT DISTINCT ON (pecas_gerais."KEY_HASH")
                         TO_CHAR("DATA"::DATE, 'YYYY-MM') AS mes,
                         CASE 
                             WHEN LOWER("PRODUTO") ILIKE '%%recond%%' THEN 'Recondicionada'
@@ -156,8 +156,6 @@ class HomeService:
                     {subquery_modelo_str}
                     {subquery_ofcina_str}
                     {subquery_pecas_str}
-                    ORDER BY 
-                        "id", "DATA"
                 )
                 SELECT
                     mes,
@@ -234,7 +232,7 @@ class HomeService:
 
             query = f"""
                 WITH cte AS (
-                    SELECT DISTINCT ON ("id")
+                    SELECT DISTINCT ON (pecas_gerais."KEY_HASH")
                         TO_CHAR("DATA"::DATE, 'YYYY-MM') AS mes,
                         CASE 
                             WHEN LOWER("PRODUTO") ILIKE '%%recond%%' THEN 'Recondicionada'
@@ -250,8 +248,6 @@ class HomeService:
                     {subquery_modelo_str}
                     {subquery_ofcina_str}
                     {subquery_pecas_str}
-                    ORDER BY 
-                        "id", "DATA"
                 )
                 SELECT
                     mes,
@@ -331,8 +327,7 @@ class HomeService:
 
             query = f"""
                 WITH cte AS (
-                    SELECT distinct on ("id")
-                        "id",
+                    SELECT distinct on (pecas_gerais."KEY_HASH")
                         "PRODUTO" AS nome_peca,
                         "QUANTIDADE",
                         "VALOR"
@@ -436,8 +431,7 @@ class HomeService:
 
             query = f"""
                 WITH cte AS (
-                    SELECT distinct on ("id")
-                        "id",
+                    SELECT distinct on (pecas_gerais."KEY_HASH")
                         "PRODUTO" AS nome_peca,
                         "QUANTIDADE",
                         "VALOR"

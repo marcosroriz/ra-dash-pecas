@@ -206,6 +206,7 @@ def plota_grafico_linha_custo_mensal(datas, lista_modelos, lista_oficina, lista_
 
     # Obtem os dados
     df_custo = home_service.get_custo_mensal_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
+    print(df_custo.columns)
     df_quantidade = home_service.get_troca_pecas_mensal(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
 
     # Gera o gráfico
@@ -245,7 +246,7 @@ def atualiza_tabela_rank_pecas(datas, lista_modelos, lista_oficina, lista_secao,
 @callback(
     Output("download-excel-tabela-rank-pecas", "data"),
     [
-        Input("btn-exportar-tipo-os", "n_clicks"),
+        Input("btn-exportar-rank-pecas", "n_clicks"),
         Input("input-intervalo-datas-geral", "value"),
         Input("input-select-modelo-veiculos-visao-geral", "value"),
         Input("input-select-oficina-visao-geral", "value"),
@@ -622,7 +623,7 @@ layout = dbc.Container(
                                             [
                                                 html.Button(
                                                     "Exportar para Excel",
-                                                    id="btn-exportar-tabela-rank-pecas",
+                                                    id="btn-exportar-rank-pecas",
                                                     n_clicks=0,
                                                     style={
                                                         "background-color": "#007bff",  # Azul
@@ -687,7 +688,7 @@ layout = dbc.Container(
                                             [
                                                 html.Button(
                                                     "Exportar para Excel",
-                                                    id="btn-exportar-tabela-rank-pecas",
+                                                    id="btn-exportar-tabela-principais-pecas",
                                                     n_clicks=0,
                                                     style={
                                                         "background-color": "#007bff",  # Azul

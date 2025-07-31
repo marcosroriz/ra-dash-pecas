@@ -83,16 +83,19 @@ def get_lista_os(dbEngine):
 
 
 def get_modelos(dbEngine):
+    try:
     # Lista de OS
-    return pd.read_sql(
-        """
-        SELECT DISTINCT
-            "MODELO" AS "MODELO"
-        FROM 
-            pecas_gerais
-        """,
-        dbEngine,
-    )
+        with dbEngine.begin() as conn: 
+            df = pd.read_sql("""
+                SELECT DISTINCT
+                    "MODELO" AS "MODELO"
+                FROM pecas_gerais
+            """, conn)
+            return df
+        
+    except Exception as e:
+        print(f"Erro ao executar a consulta: {e}")
+        raise
 
 def get_modelos_pecas_odometro(dbEngine):
     # Lista de OS

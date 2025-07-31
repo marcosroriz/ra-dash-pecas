@@ -253,7 +253,10 @@ class RelatorioPecasService:
             """
 
             # Executa a consulta e retorna os dados como DataFrame
-            return pd.read_sql(query, self.db_engine)
+            with self.db_engine.begin() as conn:  # Gerencia transação + rollback automático
+                df = pd.read_sql(query, conn)
+            return df
+
 
         except ValueError as e:
             # Erro ao converter datas
@@ -355,34 +358,36 @@ class RelatorioPecasService:
                     valor_peca,
                     status_veiculo,
                     numero_os,
-                    LEAD(quantidade_peca) OVER (
-                        PARTITION BY id_veiculo, codigo_peca
-                        ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
-                    ) AS quantidade_troca_2,
-                    LEAD(ultimo_hodometro) OVER (
-                        PARTITION BY id_veiculo, codigo_peca
-                        ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
-                    ) AS odometro_segunda_troca,
-                    LEAD(TO_DATE(data_peca, 'YYYY-MM-DD')) OVER (
-                        PARTITION BY id_veiculo, codigo_peca
-                        ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
-                    ) AS data_segunda_troca,
-                LEAD(TO_DATE(data_ultimo_hodometro, 'YYYY-MM-DD')) OVER (
-                        PARTITION BY id_veiculo, codigo_peca
-                        ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
-                    ) AS data_odometro_segunda_troca,
-                    LEAD(ultimo_hodometro) OVER (
-                        PARTITION BY id_veiculo, codigo_peca
-                        ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
-                    ) - ultimo_hodometro AS duracao_km_entre_trocas,
-                    LEAD(TO_DATE(data_peca, 'YYYY-MM-DD')) OVER (
-                        PARTITION BY id_veiculo, codigo_peca
-                        ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD')
-                    ) - TO_DATE(data_peca, 'YYYY-MM-DD') AS duracao_dias_entre_trocas
+			        LEAD(quantidade_peca) OVER (
+			            PARTITION BY id_veiculo, codigo_peca
+			            ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD'), numero_os -- CORREÇÃO AQUI
+			        ) AS quantidade_troca_2,
+			        LEAD(ultimo_hodometro) OVER (
+			            PARTITION BY id_veiculo, codigo_peca
+			            ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD'), numero_os -- CORREÇÃO AQUI
+			        ) AS odometro_segunda_troca,
+			        -- ... e assim por diante para todas as outras funções LEAD ...
+			        LEAD(TO_DATE(data_peca, 'YYYY-MM-DD')) OVER (
+			            PARTITION BY id_veiculo, codigo_peca
+			            ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD'), numero_os -- CORREÇÃO AQUI
+			        ) AS data_segunda_troca,
+			       LEAD(TO_DATE(data_ultimo_hodometro, 'YYYY-MM-DD')) OVER (
+			            PARTITION BY id_veiculo, codigo_peca
+			            ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD'), numero_os -- CORREÇÃO AQUI
+			        ) AS data_odometro_segunda_troca,
+			        LEAD(ultimo_hodometro) OVER (
+			            PARTITION BY id_veiculo, codigo_peca
+			            ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD'), numero_os -- CORREÇÃO AQUI
+			        ) - ultimo_hodometro AS duracao_km_entre_trocas,
+			        LEAD(TO_DATE(data_peca, 'YYYY-MM-DD')) OVER (
+			            PARTITION BY id_veiculo, codigo_peca
+			            ORDER BY TO_DATE(data_peca, 'YYYY-MM-DD'), numero_os -- CORREÇÃO AQUI
+			        ) - TO_DATE(data_peca, 'YYYY-MM-DD') AS duracao_dias_entre_trocas
                 FROM
                     mat_view_os_pecas_hodometro_v3 as vph
                 where 
                     valor_peca > 0 -- NÃO PEGAR as PEÇAS COM VALOR NEGATIVO
+                    and status_veiculo = 'ATIVO' -- GAMBIARRA
         ),
         trocas_detalhadas AS (
             SELECT 
@@ -506,14 +511,17 @@ class RelatorioPecasService:
           from calculo_previsao_dia
         where 
             flag_ultima_troca = '1'
-            AND data_primeira_troca BETWEEN '{data_inicio}' AND '{data_fim}'
+            AND data_primeira_troca::DATE BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'
             {subquery_peças_str}
             and media_km_entre_trocas is not null  --Não linhas que não tenham média de KM
             and "AssetId" is not null; -- Não quero veiculos que não tenha odometro
             """
 
-            # Executa a consulta e retorna os dados como DataFrame
-            return pd.read_sql(query, self.db_engine)
+            print(query)
+            with self.db_engine.begin() as conn:  # Gerencia transação + rollback automático
+                df = pd.read_sql(query, conn)
+            return df
+
 
         except ValueError as e:
             # Erro ao converter datas
@@ -777,7 +785,10 @@ class RelatorioPecasService:
                 """
 
             # Executa a consulta e retorna os dados como DataFrame
-            return pd.read_sql(query, self.db_engine)
+            with self.db_engine.begin() as conn:  # Gerencia transação + rollback automático
+                df = pd.read_sql(query, conn)
+            return df
+
 
         except ValueError as e:
             # Erro ao converter datas
