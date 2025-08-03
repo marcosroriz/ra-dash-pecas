@@ -108,7 +108,7 @@ tbl_pincipais_pecas = [
         "wrapHeaderText": True,
         "autoHeaderHeight": True,
         "filter": "agNumberColumnFilter",
-        "maxWidth": 350,
+        "maxWidth": 250,
         "valueFormatter": {"function": "'R$' + params.value.toLocaleString('pt-BR')"},
         "type": ["numericColumn"],
     },
@@ -116,8 +116,8 @@ tbl_pincipais_pecas = [
         "field": "valor_por_unidade",
         "headerName": "VALOR POR PEÇA",
         "filter": "agNumberColumnFilter",
-        # "maxWidth": 350,
-        "flex": 1,  # <-- esta linha permite que essa coluna "preencha" o espaço restante
+        "maxWidth": 200,
+        #"flex": 1,  # <-- esta linha permite que essa coluna "preencha" o espaço restante
         "valueFormatter": {"function": "'R$' + params.value.toLocaleString('pt-BR')"},
         "type": ["numericColumn"],
         "autoSize": True, 

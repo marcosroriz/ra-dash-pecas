@@ -32,8 +32,8 @@ def grafico_pecas_mais_trocadas(dataframe: pd.DataFrame, titulo: str = "Peças M
     ))
 
     fig.update_layout(
-        title=titulo,
-        title_x=0.5,
+        #title=titulo,
+        #title_x=0.5,
         xaxis=dict(
             showgrid=False,
             zeroline=False,

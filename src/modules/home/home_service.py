@@ -70,7 +70,7 @@ class HomeService:
                 SELECT DISTINCT "PRODUTO" AS "LABEL"
                 FROM pecas_gerais
                 LEFT JOIN os_dados ON "NUMERO DA OS" = "OS"
-                WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'
+                WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'    
                 {subquery_secoes_str}
                 {subquery_modelo_str}
                 {subquery_ofcina_str}
@@ -151,7 +151,7 @@ class HomeService:
                         pecas_gerais
                     LEFT JOIN 
                         os_dados ON "NUMERO DA OS" = "OS"
-                    WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'    
+                    WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'    
                     {subquery_secoes_str}
                     {subquery_modelo_str}
                     {subquery_ofcina_str}
@@ -169,6 +169,7 @@ class HomeService:
                 ORDER BY
                     mes, tipo_peca;
             """
+            print(query) 
             return pd.read_sql(query, self.db_engine)
         
         except ValueError as e:
@@ -243,7 +244,7 @@ class HomeService:
                         pecas_gerais
                     LEFT JOIN 
                         os_dados ON "NUMERO DA OS" = "OS"
-                    WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'    
+                    WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'     
                     {subquery_secoes_str}
                     {subquery_modelo_str}
                     {subquery_ofcina_str}
@@ -335,7 +336,7 @@ class HomeService:
                         pecas_gerais
                     LEFT JOIN 
                         os_dados ON "NUMERO DA OS" = "OS"
-                    WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'    
+                    WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'    
                     {subquery_secoes_str}
                     {subquery_modelo_str}
                     {subquery_ofcina_str}
@@ -439,7 +440,7 @@ class HomeService:
                         pecas_gerais
                     LEFT JOIN 
                         os_dados ON "NUMERO DA OS" = "OS"
-                    WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'    
+                    WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'     
                     {subquery_secoes_str}
                     {subquery_modelo_str}
                     {subquery_ofcina_str}
