@@ -231,7 +231,7 @@ def grafico_e_df_boxplot_pecas(datas, lista_modelos, lista_pecas):
     if "TODAS" in lista_pecas:
         fig = px.box(df, y="km_efetivo_da_peca", title="Boxplot Geral da Duração (km)")
     else:
-        fig = px.box(df, x="nome_pecas", y="km_efetivo_da_peca", title="Boxplot por Peça")
+        fig = px.box(df, x="nome_pecas", y="km_efetivo_da_peca")
 
     fig.update_layout(
         xaxis_title="Peça" if "TODAS" not in lista_pecas else "",
@@ -269,7 +269,7 @@ def grafico_e_df_boxplot_pecas_5000km(datas, lista_modelos, lista_pecas):
     if "TODAS" in lista_pecas:
         fig = px.box(df, y="km_efetivo_da_peca", title="Boxplot Geral da Duração (km)")
     else:
-        fig = px.box(df, x="nome_pecas", y="km_efetivo_da_peca", title="Boxplot por Peça")
+        fig = px.box(df, x="nome_pecas", y="km_efetivo_da_peca")
 
     fig.update_layout(
         xaxis_title="Peça" if "TODAS" not in lista_pecas else "",
