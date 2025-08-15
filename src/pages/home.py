@@ -235,10 +235,11 @@ def plota_grafico_linha_custo_mensal(datas, lista_modelos, lista_oficina, lista_
 def atualiza_tabela_rank_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
     # Valida input
     if not input_valido(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
-        return []
+        return False, []
 
     # Obtem dados
     df = home_service.get_rank_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
+    print(len(df))
 
     return False, df.to_dict("records")
 
@@ -611,7 +612,7 @@ layout = dbc.Container(
                     dbc.Row(
                         [
                             html.H4(
-                                "RANKING DE PEÇAS MAIS CARAS",
+                                "PRINCIPAIS PEÇAS",
                                 className="align-self-center",
                             ),
                             dmc.Space(h=5),
@@ -654,88 +655,101 @@ layout = dbc.Container(
             align="center",
         ),
         dmc.Space(h=20),
+        # dag.AgGrid(
+        #     # enableEnterpriseModules=True,
+        #     id="tabela-ranking-de-pecas-mais-caras",
+        #     columnDefs=home_tabelas.tbl_ranking_de_pecas_mais_trocadas,
+        #     rowData=[],
+        #     defaultColDef={"filter": True, "floatingFilter": True},
+        #     columnSize="autoSize",
+        #     dashGridOptions={
+        #         "localeText": locale_utils.AG_GRID_LOCALE_BR,
+        #     },
+        #     # Permite resize --> https://community.plotly.com/t/anyone-have-better-ag-grid-resizing-scheme/78398/5
+        #     style={"height": 400, "resize": "vertical", "overflow": "hidden"},
+        # ),
         dag.AgGrid(
-            # enableEnterpriseModules=True,
-            id="tabela-ranking-de-pecas-mais-caras",
-            columnDefs=home_tabelas.tbl_ranking_de_pecas_mais_trocadas,
-            rowData=[],
-            defaultColDef={"filter": True, "floatingFilter": True},
-            columnSize="autoSize",
-            dashGridOptions={
-                "localeText": locale_utils.AG_GRID_LOCALE_BR,
-            },
-            # Permite resize --> https://community.plotly.com/t/anyone-have-better-ag-grid-resizing-scheme/78398/5
-            style={"height": 400, "resize": "vertical", "overflow": "hidden"},
+        id="tabela-ranking-de-pecas-mais-caras",
+        columnDefs=home_tabelas.tbl_ranking_de_pecas_mais_trocadas,
+        rowData=[],  # suas 2000 linhas
+        defaultColDef={"filter": True, "floatingFilter": True},
+        # Remova columnSize="autoSize" se estiver lento
+        dashGridOptions={
+            "localeText": locale_utils.AG_GRID_LOCALE_BR,
+            "pagination": True,            # habilita paginação
+            "paginationPageSize": 50       # mostra 50 linhas por página (ajuste conforme quiser)
+        },
+        style={"height": 400, "overflow": "hidden"},
         ),
         dmc.Space(h=40),
         # Tabela com as estatísticas gerais por Colaborador
-        dbc.Row(
-            [
-                dbc.Col(DashIconify(icon="mdi:bus-wrench", width=45), width="auto"),
-                dbc.Col(
-                    dbc.Row(
-                        [
-                            html.H4(
-                                "PRINCIPAIS PEÇAS",
-                                className="align-self-center",
-                            ),
-                            dmc.Space(h=5),
-                            dbc.Row(
-                                [
-                                    dbc.Col(gera_labels_inputs("visao-geral-tabela-principais-pecas"), width=True),
-                                    dbc.Col(
-                                        html.Div(
-                                            [
-                                                html.Button(
-                                                    "Exportar para Excel",
-                                                    id="btn-exportar-tabela-principais-pecas",
-                                                    n_clicks=0,
-                                                    style={
-                                                        "background-color": "#007bff",  # Azul
-                                                        "color": "white",
-                                                        "border": "none",
-                                                        "padding": "10px 20px",
-                                                        "border-radius": "8px",
-                                                        "cursor": "pointer",
-                                                        "font-size": "16px",
-                                                        "font-weight": "bold",
-                                                    },
-                                                ),
-                                                dcc.Download(id="download-excel-tabela-principais-pecas"),
-                                            ],
-                                            style={"text-align": "right"},
-                                        ),
-                                        width="auto",
-                                    ),
-                                ],
-                                align="center",
-                                justify="between",  # Deixa os itens espaçados
-                            ),
-                        ]
-                    ),
-                    width=True,
-                ),
-            ],
-            align="center",
-        ),
+        # dbc.Row(
+        #     [
+        #         dbc.Col(DashIconify(icon="mdi:bus-wrench", width=45), width="auto"),
+        #         dbc.Col(
+        #             dbc.Row(
+        #                 [
+        #                     html.H4(
+        #                         "PRINCIPAIS PEÇAS",
+        #                         className="align-self-center",
+        #                     ),
+        #                     dmc.Space(h=5),
+        #                     dbc.Row(
+        #                         [
+        #                             dbc.Col(gera_labels_inputs("visao-geral-tabela-principais-pecas"), width=True),
+        #                             dbc.Col(
+        #                                 html.Div(
+        #                                     [
+        #                                         html.Button(
+        #                                             "Exportar para Excel",
+        #                                             id="btn-exportar-tabela-principais-pecas",
+        #                                             n_clicks=0,
+        #                                             style={
+        #                                                 "background-color": "#007bff",  # Azul
+        #                                                 "color": "white",
+        #                                                 "border": "none",
+        #                                                 "padding": "10px 20px",
+        #                                                 "border-radius": "8px",
+        #                                                 "cursor": "pointer",
+        #                                                 "font-size": "16px",
+        #                                                 "font-weight": "bold",
+        #                                             },
+        #                                         ),
+        #                                         dcc.Download(id="download-excel-tabela-principais-pecas"),
+        #                                     ],
+        #                                     style={"text-align": "right"},
+        #                                 ),
+        #                                 width="auto",
+        #                             ),
+        #                         ],
+        #                         align="center",
+        #                         justify="between",  # Deixa os itens espaçados
+        #                     ),
+        #                 ]
+        #             ),
+        #             width=True,
+        #         ),
+        #     ],
+        #     align="center",
+        # ),
 
-        dmc.Space(h=20),
-        dag.AgGrid(
-            id="tabela-principais-pecas",
-            columnDefs=home_tabelas.tbl_pincipais_pecas,
-            rowData=[],
-            defaultColDef={
-            "filter": True,
-            "floatingFilter": True,
-            "resizable": True,
-            "autoSize": True,  # <- aqui já resolve para todas
-            },
-            columnSize="responsiveSizeToFit",  # Corrigido aqui
-            dashGridOptions={
-                "localeText": locale_utils.AG_GRID_LOCALE_BR,
-            },
-            style={"height": 400, "resize": "vertical", "overflow": "hidden"},
-        ),
+        # dmc.Space(h=20),
+        # dag.AgGrid(
+        #     id="tabela-principais-pecas",
+        #     columnDefs=home_tabelas.tbl_pincipais_pecas,
+        #     rowData=[],
+        #     defaultColDef={
+        #     "filter": True,
+        #     "floatingFilter": True,
+        #     "resizable": True,
+        #     "autoSize": True,  # <- aqui já resolve para todas
+        #     },
+        #     columnSize="responsiveSizeToFit",  # Corrigido aqui
+        #     dashGridOptions={
+        #         "localeText": locale_utils.AG_GRID_LOCALE_BR,
+        #     },
+        #     style={"height": 400, "resize": "vertical", "overflow": "hidden"},
+        # ),
         dmc.Space(h=40),
                 # dmc.Space(h=20),
         # dag.AgGrid(

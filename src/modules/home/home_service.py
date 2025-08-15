@@ -71,6 +71,7 @@ class HomeService:
                 FROM pecas_gerais
                 LEFT JOIN os_dados ON "NUMERO DA OS" = "OS"
                 WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'    
+                and "TIPO DE MANUTENCAO" = 'Corretiva'
                 {subquery_secoes_str}
                 {subquery_modelo_str}
                 {subquery_ofcina_str}
@@ -151,7 +152,8 @@ class HomeService:
                         pecas_gerais
                     LEFT JOIN 
                         os_dados ON "NUMERO DA OS" = "OS"
-                    WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'    
+                    WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'
+                    and "TIPO DE MANUTENCAO" = 'Corretiva'
                     {subquery_secoes_str}
                     {subquery_modelo_str}
                     {subquery_ofcina_str}
@@ -245,6 +247,7 @@ class HomeService:
                     LEFT JOIN 
                         os_dados ON "NUMERO DA OS" = "OS"
                     WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'     
+                    and "TIPO DE MANUTENCAO" = 'Corretiva'
                     {subquery_secoes_str}
                     {subquery_modelo_str}
                     {subquery_ofcina_str}
@@ -327,43 +330,134 @@ class HomeService:
                 
 
             query = f"""
-                WITH cte AS (
-                    SELECT distinct on (pecas_gerais."KEY_HASH")
-                        "PRODUTO" AS nome_peca,
-                        "QUANTIDADE",
-                        "VALOR"
-                    FROM 
-                        pecas_gerais
-                    LEFT JOIN 
-                        os_dados ON "NUMERO DA OS" = "OS"
-                    WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'    
-                    {subquery_secoes_str}
-                    {subquery_modelo_str}
-                    {subquery_ofcina_str}
-                    {subquery_pecas_str}
-                ),
-                ranked_pecas AS (
-                    SELECT
-                        nome_peca,
-                        SUM("QUANTIDADE") AS quantidade,
-                        COUNT(*) AS frequencia,
-                        SUM("QUANTIDADE" * "VALOR") AS valor_total,
-                        SUM("QUANTIDADE" * "VALOR") / NULLIF(SUM("QUANTIDADE"), 0) AS valor_por_unidade,
-                        RANK() OVER (ORDER BY SUM("QUANTIDADE" * "VALOR") DESC) AS posicao
-                    FROM cte
-                    GROUP BY nome_peca
-                )
-                SELECT 
-                    posicao,
+                 WITH pecas AS (
+                SELECT DISTINCT ON (pecas_gerais."KEY_HASH")
+                    "PRODUTO" AS nome_peca,
+                    "QUANTIDADE",
+                    "VALOR",
+                    "OS",
+                    "PRODUTO",
+                    "DATA"
+                FROM pecas_gerais
+                LEFT JOIN os_dados 
+                    ON "NUMERO DA OS" = "OS"
+                WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'     
+                and "TIPO DE MANUTENCAO" = 'Corretiva'
+                {subquery_secoes_str}
+                {subquery_modelo_str}
+                {subquery_ofcina_str}
+                {subquery_pecas_str}
+            ),
+            -- CTE DE RANKING PARA ALGUNS VALORES
+            ranked_pecas AS (
+                SELECT
                     nome_peca,
-                    ROUND(quantidade, 2) AS quantidade,
-                    ROUND(frequencia, 2) frequencia,
-                    ROUND(valor_total, 2) AS valor_total,
-                    ROUND(valor_por_unidade, 2) AS valor_por_unidade
-                FROM 
-                    ranked_pecas
-                ORDER BY 
-                    posicao;
+                    SUM("QUANTIDADE") AS quantidade,
+                    COUNT(*) AS frequencia,
+                    SUM("VALOR") AS valor_total,
+                    SUM("VALOR") / NULLIF(SUM("QUANTIDADE"), 0) AS valor_por_unidade,
+                    RANK() OVER (ORDER BY SUM("VALOR") DESC) AS posicao
+                FROM pecas
+                GROUP BY nome_peca
+            ),
+            -- CTE INICIAL DO RETRABALHO DA OS
+            retrabalho_os AS (
+                SELECT *
+                FROM mat_view_retrabalho_15_dias_distinct
+                WHERE "TIPO DE MANUTENCAO" = 'Corretiva'
+            ),
+            -- CTE INTERMEDIARIA QUE IDENTIFICA E RETIRA AS OS
+            pecas_retrabalho_sem_duplicadas AS (
+                SELECT *
+                FROM (
+                    SELECT 
+                        pg.*,
+                        r.*,
+                        COUNT(*) OVER (
+                            PARTITION BY pg."PRODUTO", r."NUMERO DA OS"
+                        ) AS qtde_linhas
+                    FROM pecas pg
+                    LEFT JOIN retrabalho_os r
+                        ON pg."OS" = r."NUMERO DA OS"
+                ) sub
+                WHERE qtde_linhas = 1  -- mantém apenas grupos que têm 1 linha
+            ),
+            -- CTE QUE REALIZA OS CÁLCULOS VALORES GASTOS COM RETRABALHO DADO A TABELA JÁ FILTRADA pecas_retrabalho_sem_duplicadas
+            retrabalho_pecas AS (
+                SELECT 
+                    rp."PRODUTO" AS nome_peca,
+                    COALESCE(SUM(CASE WHEN rp."retrabalho" IS NOT NULL THEN rp."VALOR" ELSE 0 END), 0) AS total_gasto_retrabalho,
+                    COALESCE(SUM(rp."VALOR"), 0) AS total_gasto,
+                    ROUND(
+                        100 * SUM(CASE WHEN rp."retrabalho" IS NOT NULL THEN rp."VALOR" ELSE 0 END)::NUMERIC / NULLIF(SUM(rp."VALOR"), 0),
+                        2
+                    ) AS perc_gasto_retrabalho
+                FROM pecas_retrabalho_sem_duplicadas rp
+                GROUP BY rp."PRODUTO"
+            ),
+            -- CTE DE RETRABALHO "CRUA" QUE SERVE PARA IDENTIFICAR OS DUPLICADOS
+            retrabalho_contagem AS (
+                SELECT  
+                    pg."PRODUTO" AS nome_peca,
+                    pg."OS" AS numero_os,
+                    r."DESCRICAO DO SERVICO" AS descricao_servico
+                FROM pecas pg
+                LEFT JOIN retrabalho_os r
+                    ON pg."OS" = r."NUMERO DA OS"
+            ),
+            -- ESSA CTE REALIZA A CONTAGEM DE DUPLICADAS POR PEÇA E NUMERO DE OS. NA TEORIA DEVERIA TER UM NOME DE PÇ PARA CADA OS
+            contagem AS (
+                SELECT 
+                    nome_peca,
+                    numero_os,
+                    COUNT(*) AS qtd_linhas
+                FROM retrabalho_contagem
+                GROUP BY nome_peca, numero_os
+            ),
+            -- ESSA CTE CLASSIFICA CADA COMBINAÇÃO DE NOME DE PEÇA E OS COMO UNICA (1) OU DUPLICADA (>1)
+            classificacao AS (
+                SELECT
+                    nome_peca,
+                    CASE WHEN qtd_linhas = 1 THEN 1 ELSE 0 END AS unica,
+                    CASE WHEN qtd_linhas > 1 THEN 1 ELSE 0 END AS duplicada
+                FROM contagem
+            ),
+            -- AQUI É CALCULADO A PORCENTAGEM DE (UNICO/DUPLICAD0) POR NOME_PEÇA 
+            percentuais AS (
+                SELECT
+                    nome_peca,
+                    ROUND(100.0 * SUM(unica) / COUNT(*), 2) AS perc_unica,
+                    ROUND(100.0 * SUM(duplicada) / COUNT(*), 2) AS perc_duplicada
+                FROM classificacao
+                GROUP BY nome_peca
+            )
+            -- CÁLCULO FINAL
+            SELECT 
+                r.posicao,
+                r.nome_peca,
+                ROUND(r.quantidade, 2) AS quantidade,
+                ROUND(r.frequencia, 2) AS frequencia,
+                ROUND(r.valor_total, 2) AS valor_total,
+                ROUND(r.valor_por_unidade, 2) AS valor_por_unidade,
+                ROUND(COALESCE(rt.total_gasto_retrabalho, 0), 2) AS total_gasto_retrabalho,
+                ROUND(COALESCE(rt.total_gasto, 0), 2) AS total_gasto_com_left,
+                --COALESCE(rt.perc_gasto_retrabalho, 0) AS perc_gasto_retrabalho,
+                COALESCE(
+                        ROUND(
+                            (rt.total_gasto_retrabalho / NULLIF(r.valor_total, 0)) * 100,
+                            2
+                        ),
+                        0
+                        ) AS perc_gasto_retrabalho,
+                pt.perc_unica as indicador_confiabibilidade_retrabalho,
+                pt.perc_duplicada
+                --pt.perc_duplicada
+            FROM ranked_pecas r
+            LEFT JOIN retrabalho_pecas rt 
+                ON r.nome_peca = rt.nome_peca
+            left join percentuais pt
+                on pt.nome_peca = r.nome_peca
+            ORDER BY r.posicao;
             """
             return pd.read_sql(query, self.db_engine)
         
@@ -431,41 +525,133 @@ class HomeService:
                 
 
             query = f"""
-                WITH cte AS (
-                    SELECT distinct on (pecas_gerais."KEY_HASH")
-                        "PRODUTO" AS nome_peca,
-                        "QUANTIDADE",
-                        "VALOR"
-                    FROM 
-                        pecas_gerais
-                    LEFT JOIN 
-                        os_dados ON "NUMERO DA OS" = "OS"
-                    WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'     
-                    {subquery_secoes_str}
-                    {subquery_modelo_str}
-                    {subquery_ofcina_str}
-                    {subquery_pecas_str}
-                ),
-                ranked_pecas AS (
-                    SELECT
-                        nome_peca,
-                        SUM("QUANTIDADE") AS quantidade,
-                        COUNT(*) AS frequencia,
-                        SUM("QUANTIDADE" * "VALOR") AS valor_total,
-                        SUM("QUANTIDADE" * "VALOR") / NULLIF(SUM("QUANTIDADE"), 0) AS valor_por_unidade,
-                        RANK() OVER (ORDER BY SUM("QUANTIDADE" * "VALOR") DESC) AS posicao
-                    FROM cte
-                    GROUP BY nome_peca
-                )
+                 WITH pecas AS (
+                SELECT DISTINCT ON (pecas_gerais."KEY_HASH")
+                    "PRODUTO" AS nome_peca,
+                    "QUANTIDADE",
+                    "VALOR",
+                    "OS",
+                    "PRODUTO",
+                    "DATA"
+                FROM pecas_gerais
+                LEFT JOIN os_dados 
+                    ON "NUMERO DA OS" = "OS"
+                WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'     
+                and "TIPO DE MANUTENCAO" = 'Corretiva'
+                {subquery_secoes_str}
+                {subquery_modelo_str}
+                {subquery_ofcina_str}
+                {subquery_pecas_str}
+            ),
+            -- CTE DE RANKING PARA ALGUNS VALORES
+            ranked_pecas AS (
+                SELECT
+                    nome_peca,
+                    SUM("QUANTIDADE") AS quantidade,
+                    COUNT(*) AS frequencia,
+                    SUM("VALOR") AS valor_total,
+                    SUM("VALOR") / NULLIF(SUM("QUANTIDADE"), 0) AS valor_por_unidade,
+                    RANK() OVER (ORDER BY SUM("VALOR") DESC) AS posicao
+                FROM pecas
+                GROUP BY nome_peca
+            ),
+            -- CTE INICIAL DO RETRABALHO DA OS
+            retrabalho_os AS (
+                SELECT *
+                FROM mat_view_retrabalho_15_dias_distinct
+            ),
+            -- CTE INTERMEDIARIA QUE IDENTIFICA E RETIRA AS OS
+            pecas_retrabalho_sem_duplicadas AS (
+                SELECT *
+                FROM (
+                    SELECT 
+                        pg.*,
+                        r.*,
+                        COUNT(*) OVER (
+                            PARTITION BY pg."PRODUTO", r."NUMERO DA OS"
+                        ) AS qtde_linhas
+                    FROM pecas pg
+                    LEFT JOIN retrabalho_os r
+                        ON pg."OS" = r."NUMERO DA OS"
+                ) sub
+                WHERE qtde_linhas = 1  -- mantém apenas grupos que têm 1 linha
+            ),
+            -- CTE QUE REALIZA OS CÁLCULOS VALORES GASTOS COM RETRABALHO DADO A TABELA JÁ FILTRADA pecas_retrabalho_sem_duplicadas
+            retrabalho_pecas AS (
+                SELECT 
+                    rp."PRODUTO" AS nome_peca,
+                    COALESCE(SUM(CASE WHEN rp."retrabalho" IS NOT NULL THEN rp."VALOR" ELSE 0 END), 0) AS total_gasto_retrabalho,
+                    COALESCE(SUM(rp."VALOR"), 0) AS total_gasto,
+                    ROUND(
+                        100 * SUM(CASE WHEN rp."retrabalho" IS NOT NULL THEN rp."VALOR" ELSE 0 END)::NUMERIC / NULLIF(SUM(rp."VALOR"), 0),
+                        2
+                    ) AS perc_gasto_retrabalho
+                FROM pecas_retrabalho_sem_duplicadas rp
+                GROUP BY rp."PRODUTO"
+            ),
+            -- CTE DE RETRABALHO "CRUA" QUE SERVE PARA IDENTIFICAR OS DUPLICADOS
+            retrabalho_contagem AS (
+                SELECT  
+                    pg."PRODUTO" AS nome_peca,
+                    pg."OS" AS numero_os,
+                    r."DESCRICAO DO SERVICO" AS descricao_servico
+                FROM pecas pg
+                LEFT JOIN retrabalho_os r
+                    ON pg."OS" = r."NUMERO DA OS"
+            ),
+            -- ESSA CTE REALIZA A CONTAGEM DE DUPLICADAS POR PEÇA E NUMERO DE OS. NA TEORIA DEVERIA TER UM NOME DE PÇ PARA CADA OS
+            contagem AS (
                 SELECT 
                     nome_peca,
-                    ROUND(quantidade, 2) AS quantidade,
-                    ROUND(valor_total, 2) AS valor_total,
-                    ROUND(valor_por_unidade, 2) AS valor_por_unidade
-                FROM 
-                    ranked_pecas
-                ORDER BY 
-                    quantidade DESC;
+                    numero_os,
+                    COUNT(*) AS qtd_linhas
+                FROM retrabalho_contagem
+                GROUP BY nome_peca, numero_os
+            ),
+            -- ESSA CTE CLASSIFICA CADA COMBINAÇÃO DE NOME DE PEÇA E OS COMO UNICA (1) OU DUPLICADA (>1)
+            classificacao AS (
+                SELECT
+                    nome_peca,
+                    CASE WHEN qtd_linhas = 1 THEN 1 ELSE 0 END AS unica,
+                    CASE WHEN qtd_linhas > 1 THEN 1 ELSE 0 END AS duplicada
+                FROM contagem
+            ),
+            -- AQUI É CALCULADO A PORCENTAGEM DE (UNICO/DUPLICAD0) POR NOME_PEÇA 
+            percentuais AS (
+                SELECT
+                    nome_peca,
+                    ROUND(100.0 * SUM(unica) / COUNT(*), 2) AS perc_unica,
+                    ROUND(100.0 * SUM(duplicada) / COUNT(*), 2) AS perc_duplicada
+                FROM classificacao
+                GROUP BY nome_peca
+            )
+            -- CÁLCULO FINAL
+            SELECT 
+                r.posicao,
+                r.nome_peca,
+                ROUND(r.quantidade, 2) AS quantidade,
+                ROUND(r.frequencia, 2) AS frequencia,
+                ROUND(r.valor_total, 2) AS valor_total,
+                ROUND(r.valor_por_unidade, 2) AS valor_por_unidade,
+                ROUND(COALESCE(rt.total_gasto_retrabalho, 0), 2) AS total_gasto_retrabalho,
+                ROUND(COALESCE(rt.total_gasto, 0), 2) AS total_gasto_com_left,
+                --COALESCE(rt.perc_gasto_retrabalho, 0) AS perc_gasto_retrabalho,
+                COALESCE(
+                        ROUND(
+                            (rt.total_gasto_retrabalho / NULLIF(r.valor_total, 0)) * 100,
+                            2
+                        ),
+                        0
+                        ) AS perc_gasto_retrabalho,
+                pt.perc_unica as indicador_confiabibilidade_retrabalho,
+                pt.perc_duplicada
+                --pt.perc_duplicada
+            FROM ranked_pecas r
+            LEFT JOIN retrabalho_pecas rt 
+                ON r.nome_peca = rt.nome_peca
+            left join percentuais pt
+                on pt.nome_peca = r.nome_peca
+            ORDER BY r.posicao;
             """
             return pd.read_sql(query, self.db_engine)
         
