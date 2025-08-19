@@ -206,11 +206,11 @@ def plota_grafico_linha_custo_mensal(datas, lista_modelos, lista_oficina, lista_
 
     # Obtem os dados
     df_custo = home_service.get_custo_mensal_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
-    print(df_custo.columns)
     df_quantidade = home_service.get_troca_pecas_mensal(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
+    df_custo_retrabalho = home_service.get_custo_mensal_pecas_retrabalho(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
 
     # Gera o gráfico
-    fig = grafico_custo_quantidade_mensal(df_custo, df_quantidade)
+    fig = grafico_custo_quantidade_mensal(df_custo, df_quantidade, df_custo_retrabalho)
     return fig
 
 
@@ -239,7 +239,6 @@ def atualiza_tabela_rank_pecas(datas, lista_modelos, lista_oficina, lista_secao,
 
     # Obtem dados
     df = home_service.get_rank_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
-    print(len(df))
 
     return False, df.to_dict("records")
 

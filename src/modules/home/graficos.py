@@ -4,7 +4,8 @@ from plotly.subplots import make_subplots
 
 def grafico_custo_quantidade_mensal(
     df_custo: pd.DataFrame,
-    df_quantidade: pd.DataFrame
+    df_quantidade: pd.DataFrame,
+    df_custo_retrabalho: pd.DataFrame
 ) -> go.Figure:
     """
     Gera dois gráficos de linha lado a lado:
@@ -40,15 +41,22 @@ def grafico_custo_quantidade_mensal(
     df_quantidade["tipo_peca"] = df_quantidade["tipo_peca"].replace(mapa_tipos)
 
     # Garante colunas de mês legíveis
-    df_custo["mes"] = pd.to_datetime(df_custo["mes"])
+    
     df_quantidade["mes"] = pd.to_datetime(df_quantidade["mes"])
-    df_custo["mes_fmt"] = df_custo["mes"].dt.strftime("%b %Y")
     df_quantidade["mes_fmt"] = df_quantidade["mes"].dt.strftime("%b %Y")
+
+    df_custo["mes"] = pd.to_datetime(df_custo["mes"])
+    df_custo["mes_fmt"] = df_custo["mes"].dt.strftime("%b %Y")
+    
+
+    df_custo_retrabalho["mes"] = pd.to_datetime(df_custo_retrabalho["mes"])
+    df_custo_retrabalho["mes_fmt"] = df_custo_retrabalho["mes"].dt.strftime("%b %Y")
+
 
     # Define cores fixas para cada tipo de peça
     cores = {
         "Peça Recondicionada": "blue",
-        "Peça Nova": "red"
+        "Peça Nova": "green"
     }
 
     # Cria os dois subplots
@@ -73,7 +81,17 @@ def grafico_custo_quantidade_mensal(
             ),
             row=1, col=1
         )
-
+    # Adiciona custo de retrabalho
+    fig.add_trace(
+        go.Scatter(
+            x=df_custo_retrabalho["mes_fmt"],
+            y=df_custo_retrabalho["total_gasto_retrabalho"],
+            mode="lines+markers",
+            name="Custo Retrabalho",
+            line=dict(dash="dot", color="red")
+        ),
+        row=1, col=1
+    )
     # ---------- Gráfico 2: QUANTIDADE ----------
     for tipo in df_quantidade["tipo_peca"].unique():
         dados = df_quantidade[df_quantidade["tipo_peca"] == tipo]
@@ -89,6 +107,16 @@ def grafico_custo_quantidade_mensal(
             row=1, col=2
         )
 
+    fig.add_trace(
+        go.Scatter(
+            x=df_custo_retrabalho["mes_fmt"],
+            y=df_custo_retrabalho["total_quantidade_retrabalho"],
+            mode="lines+markers",
+            name="Quantidade de peças de Retrabalho",
+            line=dict(dash="dot", color="red")
+        ),
+        row=1, col=2
+    )
     # Layout final
     fig.update_layout(
         height=500,

@@ -60,9 +60,10 @@ class ServiceOS:
             query = f"""
                 SELECT DISTINCT 
                     "DESCRICAO DO SERVICO" as "LABEL"
-                FROM os_dados 
-                LEFT JOIN pecas_gerais ON "NUMERO DA OS" = "OS"
-                WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'
+                FROM os_dados
+                LEFT JOIN view_pecas_desconsiderando_combustivel ON "NUMERO DA OS" = "OS"
+                WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'
+                and "TIPO DE MANUTENCAO" = 'Corretiva'
                 {subquery_secoes_str}
                 {subquery_modelo_str}
                 {subquery_ofcina_str}
@@ -110,18 +111,20 @@ class ServiceOS:
                 SELECT 
                     "PRODUTO" AS pecas,
                     SUM("QUANTIDADE") AS total_trocas
-                FROM pecas_gerais
+                FROM view_pecas_desconsiderando_combustivel
                 LEFT JOIN 
                         os_dados ON "NUMERO DA OS" = "OS"
-                WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'
-                {subquery_secoes_str}
-                {subquery_modelo_str}
-                {subquery_ofcina_str}
-                {subquery_os_str}
+                WHERE 
+                    "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'
+                        and "TIPO DE MANUTENCAO" = 'Corretiva'
+                    {subquery_secoes_str}
+                    {subquery_modelo_str}
+                    {subquery_ofcina_str}
+                    {subquery_os_str}
                 GROUP BY "PRODUTO"
                 ORDER BY total_trocas DESC;
             """
-            df =pd.read_sql(query, self.db_engine)
+            df = pd.read_sql(query, self.db_engine)
             df["percentual"] = (df["total_trocas"] / df["total_trocas"].sum()) * 100
             # Executa a consulta e retorna os dados como DataFrame
             return df

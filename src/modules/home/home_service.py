@@ -181,6 +181,87 @@ class HomeService:
             logging.error(f"Erro ao retornar os dados: get_custo_mensal_pecas {e}")
             return pd.DataFrame()
         
+    def get_custo_mensal_pecas_retrabalho(
+        self,
+        datas: List[str],
+        lista_modelos: List[str],
+        lista_oficinas: List[str],
+        lista_secoes: List[str],
+        lista_pecas: List[str]
+    )-> pd.DataFrame:
+        if not datas or len(datas) != 2:
+            raise ValueError("O parâmetro 'datas' deve conter duas datas: [data_inicial, data_final].")
+        
+        try:
+            data_inicio = pd.to_datetime(datas[0]).strftime("%d/%m/%Y")
+            data_fim = pd.to_datetime(datas[1]).strftime("%d/%m/%Y")
+
+            subquery_secoes_str = subquery_secoes(lista_secoes)
+            subquery_modelo_str = subquery_modelos(lista_modelos)
+            subquery_ofcina_str = subquery_oficinas(lista_oficinas)
+            subquery_pecas_str = subquery_pecas(lista_pecas)
+
+            query = f"""  
+                WITH pecas AS (
+                    SELECT DISTINCT ON (view_pecas_desconsiderando_combustivel."KEY_HASH")
+                        "PRODUTO" AS nome_peca,
+                        "QUANTIDADE",
+                        "VALOR",
+                        "OS",
+                        "PRODUTO",
+                        "DATA"
+                    FROM view_pecas_desconsiderando_combustivel
+                    LEFT JOIN os_dados 
+                        ON "NUMERO DA OS" = "OS"
+                    WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'
+                    and "TIPO DE MANUTENCAO" = 'Corretiva'
+                    {subquery_secoes_str}
+                    {subquery_modelo_str}
+                    {subquery_ofcina_str}
+                    {subquery_pecas_str}
+                ),
+                -- CTE INICIAL DO RETRABALHO DA OS
+                retrabalho_os AS (
+                    SELECT *
+                    FROM mat_view_retrabalho_30_dias_distinct
+                    where "TIPO DE MANUTENCAO" = 'Corretiva'
+                ),
+                -- CTE INTERMEDIARIA QUE IDENTIFICA E RETIRA AS OS
+                pecas_retrabalho_sem_duplicadas AS (
+                    SELECT *, 
+                        TO_CHAR("DATA"::DATE, 'YYYY-MM') AS mes
+                    FROM (
+                        SELECT 
+                            pg.*,
+                            r.*,
+                            COUNT(*) OVER (
+                                PARTITION BY pg."PRODUTO", r."NUMERO DA OS"
+                            ) AS qtde_linhas
+                        FROM pecas pg
+                        LEFT JOIN retrabalho_os r
+                            ON pg."OS" = r."NUMERO DA OS"
+                    ) sub
+                    WHERE qtde_linhas = 1  -- mantém apenas grupos que têm 1 linha
+                ),
+                -- CTE QUE REALIZA OS CÁLCULOS VALORES GASTOS COM RETRABALHO DADO A TABELA JÁ FILTRADA pecas_retrabalho_sem_duplicadas
+                retrabalho_pecas AS (
+                    SELECT 
+                        rp.mes as mes,
+                        COALESCE(SUM(CASE WHEN rp."retrabalho" THEN rp."VALOR" ELSE 0 END), 0) AS total_gasto_retrabalho,
+                        COALESCE(SUM(CASE WHEN rp."retrabalho" THEN rp."QUANTIDADE" ELSE 0 END), 0) AS total_quantidade_retrabalho
+                    FROM pecas_retrabalho_sem_duplicadas rp
+                    GROUP BY rp.mes
+                )
+                -- CÁLCULO FINAL
+                SELECT  * from retrabalho_pecas
+
+            """
+            return pd.read_sql(query, self.db_engine)
+
+        except Exception as e:
+            logging.error(f"Erro ao retornar os dados: get_custo_mensal_pecas_retrabalho {e}")
+            return pd.DataFrame()
+
     
     def get_troca_pecas_mensal(
         self,
@@ -330,18 +411,18 @@ class HomeService:
                 
 
             query = f"""
-                 WITH pecas AS (
-                SELECT DISTINCT ON (pecas_gerais."KEY_HASH")
+                  WITH pecas AS (
+                SELECT DISTINCT ON (view_pecas_desconsiderando_combustivel."KEY_HASH")
                     "PRODUTO" AS nome_peca,
                     "QUANTIDADE",
                     "VALOR",
                     "OS",
                     "PRODUTO",
                     "DATA"
-                FROM pecas_gerais
+                FROM view_pecas_desconsiderando_combustivel
                 LEFT JOIN os_dados 
                     ON "NUMERO DA OS" = "OS"
-                WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'     
+                WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'
                 and "TIPO DE MANUTENCAO" = 'Corretiva'
                 {subquery_secoes_str}
                 {subquery_modelo_str}
@@ -363,8 +444,8 @@ class HomeService:
             -- CTE INICIAL DO RETRABALHO DA OS
             retrabalho_os AS (
                 SELECT *
-                FROM mat_view_retrabalho_15_dias_distinct
-                WHERE "TIPO DE MANUTENCAO" = 'Corretiva'
+                FROM mat_view_retrabalho_30_dias_distinct
+                where "TIPO DE MANUTENCAO" = 'Corretiva'
             ),
             -- CTE INTERMEDIARIA QUE IDENTIFICA E RETIRA AS OS
             pecas_retrabalho_sem_duplicadas AS (
@@ -386,7 +467,7 @@ class HomeService:
             retrabalho_pecas AS (
                 SELECT 
                     rp."PRODUTO" AS nome_peca,
-                    COALESCE(SUM(CASE WHEN rp."retrabalho" IS NOT NULL THEN rp."VALOR" ELSE 0 END), 0) AS total_gasto_retrabalho,
+                    COALESCE(SUM(CASE WHEN rp."retrabalho" THEN rp."VALOR" ELSE 0 END), 0) AS total_gasto_retrabalho,
                     COALESCE(SUM(rp."VALOR"), 0) AS total_gasto,
                     ROUND(
                         100 * SUM(CASE WHEN rp."retrabalho" IS NOT NULL THEN rp."VALOR" ELSE 0 END)::NUMERIC / NULLIF(SUM(rp."VALOR"), 0),
@@ -443,12 +524,12 @@ class HomeService:
                 ROUND(COALESCE(rt.total_gasto, 0), 2) AS total_gasto_com_left,
                 --COALESCE(rt.perc_gasto_retrabalho, 0) AS perc_gasto_retrabalho,
                 COALESCE(
-                        ROUND(
-                            (rt.total_gasto_retrabalho / NULLIF(r.valor_total, 0)) * 100,
-                            2
-                        ),
-                        0
-                        ) AS perc_gasto_retrabalho,
+                ROUND(
+                    (rt.total_gasto_retrabalho / NULLIF(r.valor_total, 0)) * 100,
+                    2
+                ),
+                0
+                ) AS perc_gasto_retrabalho,
                 pt.perc_unica as indicador_confiabibilidade_retrabalho,
                 pt.perc_duplicada
                 --pt.perc_duplicada
@@ -468,7 +549,6 @@ class HomeService:
             logging.error(f"Erro ao retornar os dados: get_custo_mensal_pecas {e}")
             return pd.DataFrame()
         
-
     def get_principais_pecas(
         self,
         datas: List[str],
@@ -525,19 +605,19 @@ class HomeService:
                 
 
             query = f"""
-                 WITH pecas AS (
-                SELECT DISTINCT ON (pecas_gerais."KEY_HASH")
+            WITH pecas AS (
+                SELECT DISTINCT ON (view_pecas_desconsiderando_combustivel."KEY_HASH")
                     "PRODUTO" AS nome_peca,
                     "QUANTIDADE",
                     "VALOR",
                     "OS",
                     "PRODUTO",
                     "DATA"
-                FROM pecas_gerais
+                FROM view_pecas_desconsiderando_combustivel
                 LEFT JOIN os_dados 
                     ON "NUMERO DA OS" = "OS"
-                WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'     
-                and "TIPO DE MANUTENCAO" = 'Corretiva'
+                WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'
+                    and "TIPO DE MANUTENCAO" = 'Corretiva'
                 {subquery_secoes_str}
                 {subquery_modelo_str}
                 {subquery_ofcina_str}
@@ -558,7 +638,8 @@ class HomeService:
             -- CTE INICIAL DO RETRABALHO DA OS
             retrabalho_os AS (
                 SELECT *
-                FROM mat_view_retrabalho_15_dias_distinct
+                FROM mat_view_retrabalho_30_dias_distinct
+                where "TIPO DE MANUTENCAO" = 'Corretiva'
             ),
             -- CTE INTERMEDIARIA QUE IDENTIFICA E RETIRA AS OS
             pecas_retrabalho_sem_duplicadas AS (
@@ -580,7 +661,7 @@ class HomeService:
             retrabalho_pecas AS (
                 SELECT 
                     rp."PRODUTO" AS nome_peca,
-                    COALESCE(SUM(CASE WHEN rp."retrabalho" IS NOT NULL THEN rp."VALOR" ELSE 0 END), 0) AS total_gasto_retrabalho,
+                    COALESCE(SUM(CASE WHEN rp."retrabalho" THEN rp."VALOR" ELSE 0 END), 0) AS total_gasto_retrabalho,
                     COALESCE(SUM(rp."VALOR"), 0) AS total_gasto,
                     ROUND(
                         100 * SUM(CASE WHEN rp."retrabalho" IS NOT NULL THEN rp."VALOR" ELSE 0 END)::NUMERIC / NULLIF(SUM(rp."VALOR"), 0),
@@ -637,12 +718,12 @@ class HomeService:
                 ROUND(COALESCE(rt.total_gasto, 0), 2) AS total_gasto_com_left,
                 --COALESCE(rt.perc_gasto_retrabalho, 0) AS perc_gasto_retrabalho,
                 COALESCE(
-                        ROUND(
-                            (rt.total_gasto_retrabalho / NULLIF(r.valor_total, 0)) * 100,
-                            2
-                        ),
-                        0
-                        ) AS perc_gasto_retrabalho,
+                ROUND(
+                    (rt.total_gasto_retrabalho / NULLIF(r.valor_total, 0)) * 100,
+                    2
+                ),
+                0
+                ) AS perc_gasto_retrabalho,
                 pt.perc_unica as indicador_confiabibilidade_retrabalho,
                 pt.perc_duplicada
                 --pt.perc_duplicada
