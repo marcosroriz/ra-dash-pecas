@@ -423,9 +423,8 @@ layout = dbc.Container(
                                         ],
                                         body=True,
                                     ),
-                                    md=12,
+                                    md=6,
                                 ),
-                                dmc.Space(h=10), 
                                 dbc.Col(
                                     dbc.Card(
                                         [
@@ -451,7 +450,7 @@ layout = dbc.Container(
                                         ],
                                         body=True,
                                     ),
-                                    md=12,
+                                    md=6,
                                 ),
                                 dmc.Space(h=10),
                                 dbc.Col(
