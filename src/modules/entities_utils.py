@@ -48,6 +48,18 @@ def get_secoes(dbEngine):
         dbEngine,
     )
 
+def get_pecas(dbEngine):
+    """Retorna todas as pecas"""
+    return pd.read_sql(
+        """
+        SELECT 
+            DISTINCT "PRODUTO" AS "LABEL"
+        FROM 
+            pecas_gerais
+        """,
+        dbEngine,
+    )
+
 
 def get_mecanicos(dbEngine):
     # Colaboradores / Mecânicos
@@ -71,16 +83,33 @@ def get_lista_os(dbEngine):
 
 
 def get_modelos(dbEngine):
+    try:
     # Lista de OS
-    return pd.read_sql(
+        with dbEngine.begin() as conn: 
+            df = pd.read_sql("""
+                SELECT DISTINCT
+                    "MODELO" AS "MODELO"
+                FROM pecas_gerais
+            """, conn)
+            return df
+        
+    except Exception as e:
+        print(f"Erro ao executar a consulta: {e}")
+        raise
+
+def get_modelos_pecas_odometro(dbEngine):
+    # Lista de OS
+    df = pd.read_sql(
         """
         SELECT DISTINCT
-            "DESCRICAO DO MODELO" AS "MODELO"
+            "modelo_frota" AS "MODELO"
         FROM 
-            mat_view_retrabalho_10_dias mvrd
+            mat_view_os_pecas_hodometro_v3
         """,
         dbEngine,
     )
+    df = df.dropna(subset=["MODELO"])
+    return df
 
 def gerar_excel(df):
     output = io.BytesIO()

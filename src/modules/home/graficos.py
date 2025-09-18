@@ -1,9 +1,127 @@
 import pandas as pd
-import numpy as np
-
-# Imports gráficos
-import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
-# Imports do tema
-import tema
+def grafico_custo_quantidade_mensal(
+    df_custo: pd.DataFrame,
+    df_quantidade: pd.DataFrame,
+    df_custo_retrabalho: pd.DataFrame
+) -> go.Figure:
+    """
+    Gera dois gráficos de linha lado a lado:
+        1. Custo mensal por tipo de peça
+        2. Quantidade mensal de peças trocadas por tipo
+
+    Parâmetros
+    ----------
+    df_custo : pd.DataFrame
+        Deve ter as colunas:
+            - 'mes' (datetime ou str 'YYYY-MM')
+            - 'custo_total' (float)
+            - 'tipo_peca' (str)  -> valores 'Recondicionada' ou 'Nao Recondicionada'
+
+    df_quantidade : pd.DataFrame
+        Deve ter as colunas:
+            - 'mes' (datetime ou str 'YYYY-MM')
+            - 'quantidade_total' (int)
+            - 'tipo_peca' (str)
+
+    Retorno
+    -------
+    fig : plotly.graph_objects.Figure
+        Figure com os dois subplots.
+    """
+
+    # Padroniza rótulos dos tipos de peça
+    mapa_tipos = {
+        "Recondicionada": "Peça Recondicionada",
+        "Nao Recondicionada": "Peça Nova"
+    }
+    df_custo["tipo_peca"] = df_custo["tipo_peca"].replace(mapa_tipos)
+    df_quantidade["tipo_peca"] = df_quantidade["tipo_peca"].replace(mapa_tipos)
+
+    # Garante colunas de mês legíveis
+    
+    df_quantidade["mes"] = pd.to_datetime(df_quantidade["mes"])
+    df_quantidade["mes_fmt"] = df_quantidade["mes"].dt.strftime("%b %Y")
+
+    df_custo["mes"] = pd.to_datetime(df_custo["mes"])
+    df_custo["mes_fmt"] = df_custo["mes"].dt.strftime("%b %Y")
+    
+
+    df_custo_retrabalho["mes"] = pd.to_datetime(df_custo_retrabalho["mes"])
+    df_custo_retrabalho["mes_fmt"] = df_custo_retrabalho["mes"].dt.strftime("%b %Y")
+
+
+    # Define cores fixas para cada tipo de peça
+    cores = {
+        "Peça Recondicionada": "blue",
+        "Peça Nova": "green"
+    }
+
+    # Cria os dois subplots
+    fig = make_subplots(
+        rows=1,
+        cols=2,
+        subplot_titles=("Custo com Peças por Mês",
+                        "Quantidade de Peças Trocadas por Mês"),
+        shared_yaxes=False
+    )
+
+    # ---------- Gráfico 1: CUSTO ----------
+    for tipo in df_custo["tipo_peca"].unique():
+        dados = df_custo[df_custo["tipo_peca"] == tipo]
+        fig.add_trace(
+            go.Scatter(
+                x=dados["mes_fmt"],
+                y=dados["custo_total"],
+                mode="lines+markers",
+                name=tipo,
+                line=dict(color=cores[tipo])
+            ),
+            row=1, col=1
+        )
+    # Adiciona custo de retrabalho
+    fig.add_trace(
+        go.Scatter(
+            x=df_custo_retrabalho["mes_fmt"],
+            y=df_custo_retrabalho["total_gasto_retrabalho"],
+            mode="lines+markers",
+            name="Custo Retrabalho",
+            line=dict(dash="dot", color="red")
+        ),
+        row=1, col=1
+    )
+    # ---------- Gráfico 2: QUANTIDADE ----------
+    for tipo in df_quantidade["tipo_peca"].unique():
+        dados = df_quantidade[df_quantidade["tipo_peca"] == tipo]
+        fig.add_trace(
+            go.Scatter(
+                x=dados["mes_fmt"],
+                y=dados["quantidade_total"],
+                mode="lines+markers",
+                name=tipo,
+                showlegend=False,
+                line=dict(color=cores[tipo])
+            ),
+            row=1, col=2
+        )
+
+    fig.add_trace(
+        go.Scatter(
+            x=df_custo_retrabalho["mes_fmt"],
+            y=df_custo_retrabalho["total_quantidade_retrabalho"],
+            mode="lines+markers",
+            name="Quantidade de peças de Retrabalho",
+            line=dict(dash="dot", color="red")
+        ),
+        row=1, col=2
+    )
+    # Layout final
+    fig.update_layout(
+        height=500,
+        width=1200,
+        legend_title="Tipo de Peça"
+    )
+
+    return fig

@@ -1,657 +1,829 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# Classe que centraliza os serviços para mostrar na página home
+"""
+Módulo que centraliza os serviços para a página inicial (home).
 
-# Imports básicos
-import re
+Este serviço busca e filtra informações essenciais como produtos/peças
+para exibir de forma resumida e objetiva na interface inicial da aplicação.
+"""
+
+from typing import List
 import pandas as pd
-import numpy as np
+import logging
 
 # Imports auxiliares
-from modules.sql_utils import subquery_oficinas, subquery_secoes, subquery_os, subquery_modelos
-from modules.entities_utils import get_mecanicos
+from modules.sql_utils import *
 
 
-# Classe do serviço
 class HomeService:
-    def __init__(self, dbEngine):
-        self.dbEngine = dbEngine
+    """
+    Serviço responsável por obter informações e dados para a página inicial home (Visão Geral).
 
-    def get_sintese_geral(self, datas, min_dias, lista_modelos, lista_oficinas, lista_secaos, lista_os):
-        """Função para obter a síntese geral (que será usado para o gráfico de pizza)"""
+    Attributes:
+        db_engine: Instância do SQLAlchemy Engine para conexão com o banco de dados.
+    """
 
-        # Extraí a data inicial (já em string)
-        data_inicio_str = datas[0]
+    def __init__(self, db_engine: any):
+        """
+        Inicializa o serviço com a conexão ao banco de dados.
 
-        # Extraí a data final
-        # Remove min_dias antes para evitar que a última OS não seja retrabalho
-        data_fim = pd.to_datetime(datas[1])
-        data_fim = data_fim - pd.DateOffset(days=min_dias + 1)
-        data_fim_str = data_fim.strftime("%Y-%m-%d")
+        Args:
+            db_engine: Conexão ativa com o banco.
+        """
+        self.db_engine = db_engine
 
-        # Subqueries
-        subquery_modelos_str = subquery_modelos(lista_modelos, termo_all="TODOS")
-        subquery_oficinas_str = subquery_oficinas(lista_oficinas)
-        subquery_secoes_str = subquery_secoes(lista_secaos)
-        subquery_os_str = subquery_os(lista_os)
+    def get_pecas(
+        self,
+        datas: List[str],
+        lista_modelos: List[str],
+        lista_oficinas: List[str],
+        lista_secoes: List[str]
+    ) -> pd.DataFrame:
+        """
+        Retorna a lista de peças (produtos) disponíveis em um intervalo de datas,
+        aplicando possíveis filtros por modelo, oficina e seção (ainda não aplicados nesta versão).
 
-        # Query
-        query = f"""
-            SELECT
-                COUNT(*) AS "TOTAL_NUM_OS",
-                SUM(CASE WHEN retrabalho THEN 1 ELSE 0 END) AS "TOTAL_RETRABALHO",
-                SUM(CASE WHEN correcao THEN 1 ELSE 0 END) AS "TOTAL_CORRECAO",
-                SUM(CASE WHEN correcao_primeira THEN 1 ELSE 0 END) AS "TOTAL_CORRECAO_PRIMEIRA",
-                100 * ROUND(SUM(CASE WHEN retrabalho THEN 1 ELSE 0 END)::NUMERIC / COUNT(*)::NUMERIC, 4) AS "PERC_RETRABALHO",
-                100 * ROUND(SUM(CASE WHEN correcao THEN 1 ELSE 0 END)::NUMERIC / COUNT(*)::NUMERIC, 4) AS "PERC_CORRECAO",
-                100 * ROUND(SUM(CASE WHEN correcao_primeira THEN 1 ELSE 0 END)::NUMERIC / COUNT(*)::NUMERIC, 4) AS "PERC_CORRECAO_PRIMEIRA"
-            FROM
-                mat_view_retrabalho_{min_dias}_dias_distinct
-            WHERE
-                "DATA DO FECHAMENTO DA OS" BETWEEN '{data_inicio_str}' AND '{data_fim_str}'
-                {subquery_modelos_str}
-                {subquery_oficinas_str}
+        Args:
+            datas (List[str]): Lista contendo duas datas [data_inicial, data_final] no formato ISO (YYYY-MM-DD).
+            lista_modelos (List[str]): Lista de modelos de veículos para filtrar (não utilizado nesta versão).
+            lista_oficinas (List[str]): Lista de oficinas para filtrar (não utilizado nesta versão).
+            lista_secoes (List[str]): Lista de seções para filtrar (não utilizado nesta versão).
+
+        Returns:
+            List[str]: Lista única de peças (produtos) encontrados no período especificado.
+        """
+        # Validação simples de entrada
+        if not datas or len(datas) != 2:
+            raise ValueError("O parâmetro 'datas' deve conter duas datas: [data_inicial, data_final].")
+
+        try:
+            data_inicio = pd.to_datetime(datas[0]).strftime("%d/%m/%Y")
+            data_fim = pd.to_datetime(datas[1]).strftime("%d/%m/%Y")
+
+            subquery_secoes_str = subquery_secoes(lista_secoes)
+            subquery_modelo_str = subquery_modelos(lista_modelos)
+            subquery_ofcina_str = subquery_oficinas(lista_oficinas)
+                
+
+            query = f"""
+                SELECT DISTINCT "PRODUTO" AS "LABEL"
+                FROM pecas_gerais
+                LEFT JOIN os_dados ON "NUMERO DA OS" = "OS"
+                WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'    
+                and "TIPO DE MANUTENCAO" = 'Corretiva'
                 {subquery_secoes_str}
-                {subquery_os_str}
+                {subquery_modelo_str}
+                {subquery_ofcina_str}
+                ORDER BY "PRODUTO"
+            """
+            return pd.read_sql(query, self.db_engine)
+        
+        except ValueError as e:
+            logging.error(f"Erro ao converter datas: get_pecas {e}")
+            return pd.DataFrame()
+        except Exception as e:
+            logging.error(f"Erro ao retornar os dados: get_pecas {e}")
+            return pd.DataFrame()
+        
+        
+    def get_custo_mensal_pecas(
+        self,
+        datas: List[str],
+        lista_modelos: List[str],
+        lista_oficinas: List[str],
+        lista_secoes: List[str],
+        lista_pecas: List[str]
+    )-> pd.DataFrame:
         """
+        Recupera o custo mensal das peças, separando entre peças recondicionadas e não recondicionadas.
 
-        # Executa a query
-        df = pd.read_sql(query, self.dbEngine)
+        A função executa uma consulta SQL que retorna o custo total mensal para cada tipo de peça, com base nos filtros de datas, modelos, oficinas, seções e peças fornecidos. A consulta inclui uma CTE (Common Table Expression) que filtra e agrupa os dados por mês e tipo de peça.
 
-        # Calcula o total de correções tardia
-        df["TOTAL_CORRECAO_TARDIA"] = df["TOTAL_CORRECAO"] - df["TOTAL_CORRECAO_PRIMEIRA"]
+        Parâmetros:
+        ----------
+        datas : List[str]
+            Lista contendo duas datas no formato 'YYYY-MM-DD', representando o intervalo de tempo para o qual os custos devem ser calculados. Exemplo: ['2025-01-01', '2025-01-31'].
 
-        return df
+        lista_modelos : List[str]
+            Lista de modelos de veículos a serem filtrados na consulta.
 
-    def get_retrabalho_por_modelo(self, datas, min_dias, lista_modelos, lista_oficinas, lista_secaos, lista_os):
-        """Função para obter o quantitativo de retrabalho e correções de primeira por modelo"""
+        lista_oficinas : List[str]
+            Lista de oficinas a serem filtradas na consulta.
 
-        # Extraí a data inicial (já em string)
-        data_inicio_str = datas[0]
+        lista_secoes : List[str]
+            Lista de seções a serem filtradas na consulta.
 
-        # Extraí a data final
-        # Remove min_dias antes para evitar que a última OS não seja retrabalho
-        data_fim = pd.to_datetime(datas[1])
-        data_fim = data_fim - pd.DateOffset(days=min_dias + 1)
-        data_fim_str = data_fim.strftime("%Y-%m-%d")
+        lista_pecas : List[str]
+            Lista de tipos de peças a serem filtrados na consulta.
 
-        # Subqueries
-        subquery_modelos_str = subquery_modelos(lista_modelos, termo_all="TODOS")
-        subquery_oficinas_str = subquery_oficinas(lista_oficinas)
-        subquery_secoes_str = subquery_secoes(lista_secaos)
-        subquery_os_str = subquery_os(lista_os)
-
-        # Queries
-        # Primeiro pegamos o total de veículos por modelo no período, não vamos restringir por problema
-        query_total_frota = f"""
-        SELECT 
-            "DESCRICAO DO MODELO", 
-            COUNT(DISTINCT "CODIGO DO VEICULO") AS "TOTAL_FROTA_PERIODO"
-        FROM 
-            mat_view_retrabalho_{min_dias}_dias_distinct
-        WHERE
-            "DATA DO FECHAMENTO DA OS" BETWEEN '{data_inicio_str}' AND '{data_fim_str}'
-            {subquery_modelos_str}
-            {subquery_oficinas_str}
-        GROUP BY 
-            "DESCRICAO DO MODELO"
+        Retorna:
+        -------
+        pd.DataFrame
+            Um DataFrame contendo as colunas 'mes', 'tipo_peca' e 'custo_total', com o custo mensal de peças recondicionadas e não recondicionadas.
+            - 'mes' (str): O mês no formato 'YYYY-MM'.
+            - 'tipo_peca' (str): O tipo da peça ('Recondicionada' ou 'Nao Recondicionada').
+            - 'custo_total' (float): O custo total para o mês e tipo de peça.
         """
+        # Validação simples de entrada
+        if not datas or len(datas) != 2:
+            raise ValueError("O parâmetro 'datas' deve conter duas datas: [data_inicial, data_final].")
+        
+        try:
+            data_inicio = pd.to_datetime(datas[0]).strftime("%d/%m/%Y")
+            data_fim = pd.to_datetime(datas[1]).strftime("%d/%m/%Y")
 
-        query_teve_problema = f"""
-        SELECT 
-            "DESCRICAO DO MODELO", 
-            COUNT(DISTINCT "CODIGO DO VEICULO") AS "TOTAL_FROTA_TEVE_PROBLEMA"
-        FROM 
-            mat_view_retrabalho_{min_dias}_dias_distinct
-        WHERE
-            "DATA DO FECHAMENTO DA OS" BETWEEN '{data_inicio_str}' AND '{data_fim_str}'
-            {subquery_modelos_str}
-            {subquery_oficinas_str}
-            {subquery_secoes_str}
-            {subquery_os_str}
-        GROUP BY 
-            "DESCRICAO DO MODELO"
+            subquery_secoes_str = subquery_secoes(lista_secoes)
+            subquery_modelo_str = subquery_modelos(lista_modelos)
+            subquery_ofcina_str = subquery_oficinas(lista_oficinas)
+            subquery_pecas_str = subquery_pecas(lista_pecas)
+                
+
+            query = f"""
+                WITH cte AS (
+                    SELECT DISTINCT ON (pecas_gerais."KEY_HASH")
+                        TO_CHAR("DATA"::DATE, 'YYYY-MM') AS mes,
+                        CASE 
+                            WHEN LOWER("PRODUTO") ILIKE '%%recond%%' THEN 'Recondicionada'
+                            ELSE 'Nao Recondicionada'
+                        END AS tipo_peca,
+                        "VALOR"
+                    FROM 
+                        pecas_gerais
+                    LEFT JOIN 
+                        os_dados ON "NUMERO DA OS" = "OS"
+                    WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'
+                    and "TIPO DE MANUTENCAO" = 'Corretiva'
+                    {subquery_secoes_str}
+                    {subquery_modelo_str}
+                    {subquery_ofcina_str}
+                    {subquery_pecas_str}
+                )
+                SELECT
+                    mes,
+                    tipo_peca,
+                    ROUND(SUM("VALOR"), 2) AS custo_total
+                FROM
+                    cte
+                GROUP BY
+                    mes,
+                    tipo_peca
+                ORDER BY
+                    mes, tipo_peca;
+            """
+            print(query) 
+            return pd.read_sql(query, self.db_engine)
+        
+        except ValueError as e:
+            logging.error(f"Erro ao converter datas: get_custo_mensal_pecas {e}")
+            return pd.DataFrame()
+        except Exception as e:
+            logging.error(f"Erro ao retornar os dados: get_custo_mensal_pecas {e}")
+            return pd.DataFrame()
+        
+    def get_custo_mensal_pecas_retrabalho(
+        self,
+        datas: List[str],
+        lista_modelos: List[str],
+        lista_oficinas: List[str],
+        lista_secoes: List[str],
+        lista_pecas: List[str]
+    )-> pd.DataFrame:
+        if not datas or len(datas) != 2:
+            raise ValueError("O parâmetro 'datas' deve conter duas datas: [data_inicial, data_final].")
+        
+        try:
+            data_inicio = pd.to_datetime(datas[0]).strftime("%d/%m/%Y")
+            data_fim = pd.to_datetime(datas[1]).strftime("%d/%m/%Y")
+
+            subquery_secoes_str = subquery_secoes(lista_secoes)
+            subquery_modelo_str = subquery_modelos(lista_modelos)
+            subquery_ofcina_str = subquery_oficinas(lista_oficinas)
+            subquery_pecas_str = subquery_pecas(lista_pecas)
+
+            query = f"""  
+                WITH pecas AS (
+                    SELECT DISTINCT ON (view_pecas_desconsiderando_combustivel."KEY_HASH")
+                        "PRODUTO" AS nome_peca,
+                        "QUANTIDADE",
+                        "VALOR",
+                        "OS",
+                        "PRODUTO",
+                        "DATA"
+                    FROM view_pecas_desconsiderando_combustivel
+                    LEFT JOIN os_dados 
+                        ON "NUMERO DA OS" = "OS"
+                    WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'
+                    and "TIPO DE MANUTENCAO" = 'Corretiva'
+                    {subquery_secoes_str}
+                    {subquery_modelo_str}
+                    {subquery_ofcina_str}
+                    {subquery_pecas_str}
+                ),
+                -- CTE INICIAL DO RETRABALHO DA OS
+                retrabalho_os AS (
+                    SELECT *
+                    FROM mat_view_retrabalho_30_dias_distinct
+                    where "TIPO DE MANUTENCAO" = 'Corretiva'
+                ),
+                -- CTE INTERMEDIARIA QUE IDENTIFICA E RETIRA AS OS
+                pecas_retrabalho_sem_duplicadas AS (
+                    SELECT *, 
+                        TO_CHAR("DATA"::DATE, 'YYYY-MM') AS mes
+                    FROM (
+                        SELECT 
+                            pg.*,
+                            r.*,
+                            COUNT(*) OVER (
+                                PARTITION BY pg."PRODUTO", r."NUMERO DA OS"
+                            ) AS qtde_linhas
+                        FROM pecas pg
+                        LEFT JOIN retrabalho_os r
+                            ON pg."OS" = r."NUMERO DA OS"
+                    ) sub
+                    WHERE qtde_linhas = 1  -- mantém apenas grupos que têm 1 linha
+                ),
+                -- CTE QUE REALIZA OS CÁLCULOS VALORES GASTOS COM RETRABALHO DADO A TABELA JÁ FILTRADA pecas_retrabalho_sem_duplicadas
+                retrabalho_pecas AS (
+                    SELECT 
+                        rp.mes as mes,
+                        COALESCE(SUM(CASE WHEN rp."retrabalho" THEN rp."VALOR" ELSE 0 END), 0) AS total_gasto_retrabalho,
+                        COALESCE(SUM(CASE WHEN rp."retrabalho" THEN rp."QUANTIDADE" ELSE 0 END), 0) AS total_quantidade_retrabalho
+                    FROM pecas_retrabalho_sem_duplicadas rp
+                    GROUP BY rp.mes
+                )
+                -- CÁLCULO FINAL
+                SELECT  * from retrabalho_pecas
+
+            """
+            return pd.read_sql(query, self.db_engine)
+
+        except Exception as e:
+            logging.error(f"Erro ao retornar os dados: get_custo_mensal_pecas_retrabalho {e}")
+            return pd.DataFrame()
+
+    
+    def get_troca_pecas_mensal(
+        self,
+        datas: List[str],
+        lista_modelos: List[str],
+        lista_oficinas: List[str],
+        lista_secoes: List[str],
+        lista_pecas: List[str]
+    )-> pd.DataFrame:
         """
+        Método para recuperar o total de peças trocadas por tipo e mês, com base nos parâmetros fornecidos, 
+        aplicando filtros por datas, modelos, oficinas, seções e tipos de peças.
 
-        query_teve_retrabalho = f"""
-        SELECT 
-            "DESCRICAO DO MODELO", 
-            COUNT(DISTINCT "CODIGO DO VEICULO") AS "TOTAL_FROTA_TEVE_RETRABALHO"
-        FROM 
-            mat_view_retrabalho_{min_dias}_dias_distinct
-        WHERE
-            "DATA DO FECHAMENTO DA OS" BETWEEN '{data_inicio_str}' AND '{data_fim_str}'
-            {subquery_modelos_str}
-            {subquery_oficinas_str}
-            {subquery_secoes_str}
-            {subquery_os_str}
-            AND retrabalho = TRUE
-        GROUP BY 
-            "DESCRICAO DO MODELO"
+        Parâmetros:
+        -----------
+        datas : List[str]
+            Uma lista contendo duas datas: a data inicial e a data final, no formato 'dd/mm/yyyy'.
+            Exemplo: ['01/01/2022', '31/01/2022'].
+            
+        lista_modelos : List[str]
+            Lista com os modelos dos veículos a serem filtrados.
+            
+        lista_oficinas : List[str]
+            Lista com as oficinas a serem filtradas.
+            
+        lista_secoes : List[str]
+            Lista com as seções a serem filtradas.
+            
+        lista_pecas : List[str]
+            Lista com os tipos de peças a serem filtrados.
+
+        Retorno:
+        --------
+        pd.DataFrame
+            DataFrame contendo o total de peças trocadas, agrupadas por tipo de peça e mês, 
+            com as colunas: 'mes', 'tipo_peca' e 'quantidade_total'. Caso ocorra algum erro, 
+            o método retorna um DataFrame vazio.
         """
+        # Validação simples de entrada
+        if not datas or len(datas) != 2:
+            raise ValueError("O parâmetro 'datas' deve conter duas datas: [data_inicial, data_final].")
+        
+        try:
+            data_inicio = pd.to_datetime(datas[0]).strftime("%d/%m/%Y")
+            data_fim = pd.to_datetime(datas[1]).strftime("%d/%m/%Y")
 
-        # Executa Queries
-        df_total_frota = pd.read_sql(query_total_frota, self.dbEngine)
-        df_teve_problema = pd.read_sql(query_teve_problema, self.dbEngine)
-        df_teve_retrabalho = pd.read_sql(query_teve_retrabalho, self.dbEngine)
+            subquery_secoes_str = subquery_secoes(lista_secoes)
+            subquery_modelo_str = subquery_modelos(lista_modelos)
+            subquery_ofcina_str = subquery_oficinas(lista_oficinas)
+            subquery_pecas_str = subquery_pecas(lista_pecas)
+                
 
-        # Merge dos dataframes
-        df = df_total_frota.merge(df_teve_problema, on="DESCRICAO DO MODELO", how="left")
-        df = df.merge(df_teve_retrabalho, on="DESCRICAO DO MODELO", how="left")
-        df.fillna(0, inplace=True)
-
-        # Calcular campos
-        df["NAO_TEVE_PROBLEMA"] = df["TOTAL_FROTA_PERIODO"] - df["TOTAL_FROTA_TEVE_PROBLEMA"]
-        df["TEVE_PROBLEMA_SEM_RETRABALHO"] = df["TOTAL_FROTA_TEVE_PROBLEMA"] - df["TOTAL_FROTA_TEVE_RETRABALHO"]
-        df["TEVE_PROBLEMA_E_RETRABALHO"] = df["TOTAL_FROTA_TEVE_RETRABALHO"]
-
-        # Calcula as porcentagens
-        df["PERC_NAO_TEVE_PROBLEMA"] = round(100 * df["NAO_TEVE_PROBLEMA"] / df["TOTAL_FROTA_PERIODO"], 1)
-        df["PERC_TEVE_PROBLEMA_SEM_RETRABALHO"] = round(100 * df["TEVE_PROBLEMA_SEM_RETRABALHO"] / df["TOTAL_FROTA_PERIODO"], 1)
-        df["PERC_TEVE_PROBLEMA_E_RETRABALHO"] = round(100 * df["TEVE_PROBLEMA_E_RETRABALHO"] / df["TOTAL_FROTA_PERIODO"], 1)
-
-        return df
-
-    def get_evolucao_retrabalho_por_modelo_por_mes(self, datas, min_dias, lista_modelos, lista_oficinas, lista_secaos, lista_os):
-        """Função para obter a evolução do retrabalho por modelo por mes"""
-        # Extraí a data inicial (já em string)
-        data_inicio_str = datas[0]
-
-        # Extraí a data final
-        # Remove min_dias antes para evitar que a última OS não seja retrabalho
-        data_fim = pd.to_datetime(datas[1])
-        data_fim = data_fim - pd.DateOffset(days=min_dias + 1)
-        data_fim_str = data_fim.strftime("%Y-%m-%d")
-
-        # Subqueries
-        subquery_modelos_str = subquery_modelos(lista_modelos, termo_all="TODOS")
-        subquery_oficinas_str = subquery_oficinas(lista_oficinas)
-        subquery_secoes_str = subquery_secoes(lista_secaos)
-        subquery_os_str = subquery_os(lista_os)
-
-        query = f"""
-        SELECT
-            to_char(to_timestamp("DATA DO FECHAMENTO DA OS", 'YYYY-MM-DD"T"HH24:MI:SS'), 'YYYY-MM') AS year_month,
-            "DESCRICAO DO MODELO",
-            100 * ROUND(SUM(CASE WHEN retrabalho THEN 1 ELSE 0 END)::NUMERIC / COUNT(*)::NUMERIC, 4) AS "PERC_RETRABALHO",
-            100 * ROUND(SUM(CASE WHEN correcao_primeira THEN 1 ELSE 0 END)::NUMERIC / COUNT(*)::NUMERIC, 4) AS "PERC_CORRECAO_PRIMEIRA"
-        FROM
-            mat_view_retrabalho_{min_dias}_dias_distinct
-        WHERE
-            "DATA DO FECHAMENTO DA OS" BETWEEN '{data_inicio_str}' AND '{data_fim_str}'
-            {subquery_modelos_str}
-            {subquery_oficinas_str}
-            {subquery_secoes_str}
-            {subquery_os_str}
-        GROUP BY
-            year_month, "DESCRICAO DO MODELO"
-        ORDER BY
-            year_month;
+            query = f"""
+                WITH cte AS (
+                    SELECT DISTINCT ON (pecas_gerais."KEY_HASH")
+                        TO_CHAR("DATA"::DATE, 'YYYY-MM') AS mes,
+                        CASE 
+                            WHEN LOWER("PRODUTO") ILIKE '%%recond%%' THEN 'Recondicionada'
+                            ELSE 'Nao Recondicionada'
+                        END AS tipo_peca,
+                        "QUANTIDADE"
+                    FROM 
+                        pecas_gerais
+                    LEFT JOIN 
+                        os_dados ON "NUMERO DA OS" = "OS"
+                    WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'     
+                    and "TIPO DE MANUTENCAO" = 'Corretiva'
+                    {subquery_secoes_str}
+                    {subquery_modelo_str}
+                    {subquery_ofcina_str}
+                    {subquery_pecas_str}
+                )
+                SELECT
+                    mes,
+                    tipo_peca,
+                    ROUND(SUM("QUANTIDADE"), 2) AS quantidade_total
+                FROM
+                    cte
+                GROUP BY
+                    mes,
+                    tipo_peca
+                ORDER BY
+                    mes, tipo_peca;
+            """
+            return pd.read_sql(query, self.db_engine)
+        
+        except ValueError as e:
+            logging.error(f"Erro ao converter datas: get_custo_mensal_pecas {e}")
+            return pd.DataFrame()
+        except Exception as e:
+            logging.error(f"Erro ao retornar os dados: get_custo_mensal_pecas {e}")
+            return pd.DataFrame()
+        
+    def get_rank_pecas(
+        self,
+        datas: List[str],
+        lista_modelos: List[str],
+        lista_oficinas: List[str],
+        lista_secoes: List[str],
+        lista_pecas: List[str]
+    )-> pd.DataFrame:
         """
+            Retorna um ranking de peças mais utilizadas no período especificado, 
+            com base em filtros aplicados por modelo de veículo, oficina, seção e peças.
 
-        # Executa query
-        df = pd.read_sql(query, self.dbEngine)
+            Parâmetros:
+            -----------
+            datas : List[str]
+                Lista com duas datas no formato string (ex: ["01/01/2024", "31/03/2024"])
+                representando o intervalo [data_inicial, data_final].
 
-        # Arruma dt
-        df["year_month_dt"] = pd.to_datetime(df["year_month"], format="%Y-%m", errors="coerce")
+            lista_modelos : List[str]
+                Lista de modelos de veículos a serem filtrados.
 
-        # Funde (melt) colunas de retrabalho e correção
-        df_combinado = df.melt(
-            id_vars=["year_month_dt", "DESCRICAO DO MODELO"],
-            value_vars=["PERC_RETRABALHO", "PERC_CORRECAO_PRIMEIRA"],
-            var_name="CATEGORIA",
-            value_name="PERC",
-        )
+            lista_oficinas : List[str]
+                Lista de oficinas a serem consideradas no filtro.
 
-        # Renomeia as colunas
-        df_combinado["CATEGORIA"] = df_combinado["CATEGORIA"].replace({"PERC_RETRABALHO": "RETRABALHO", "PERC_CORRECAO_PRIMEIRA": "CORRECAO_PRIMEIRA"})
+            lista_secoes : List[str]
+                Lista de seções (ex: áreas, centros de custo, departamentos, etc.) para filtrar os dados.
 
-        return df_combinado
+            lista_pecas : List[str]
+                Lista de nomes de peças para incluir no filtro.
 
-    def get_evolucao_retrabalho_por_oficina_por_mes(self, datas, min_dias, lista_modelos, lista_oficinas, lista_secaos, lista_os):
-        """Função para obter a evolução do retrabalho por oficina por mes"""
-        # Extraí a data inicial (já em string)
-        data_inicio_str = datas[0]
-
-        # Extraí a data final
-        # Remove min_dias antes para evitar que a última OS não seja retrabalho
-        data_fim = pd.to_datetime(datas[1])
-        data_fim = data_fim - pd.DateOffset(days=min_dias + 1)
-        data_fim_str = data_fim.strftime("%Y-%m-%d")
-
-        # Subqueries
-        subquery_modelos_str = subquery_modelos(lista_modelos, termo_all="TODOS")
-        subquery_oficinas_str = subquery_oficinas(lista_oficinas)
-        subquery_secoes_str = subquery_secoes(lista_secaos)
-        subquery_os_str = subquery_os(lista_os)
-
-        query = f"""
-        SELECT
-            to_char(to_timestamp("DATA DO FECHAMENTO DA OS", 'YYYY-MM-DD"T"HH24:MI:SS'), 'YYYY-MM') AS year_month,
-            "DESCRICAO DA OFICINA",
-            100 * ROUND(SUM(CASE WHEN retrabalho THEN 1 ELSE 0 END)::NUMERIC / COUNT(*)::NUMERIC, 4) AS "PERC_RETRABALHO",
-            100 * ROUND(SUM(CASE WHEN correcao_primeira THEN 1 ELSE 0 END)::NUMERIC / COUNT(*)::NUMERIC, 4) AS "PERC_CORRECAO_PRIMEIRA"
-        FROM
-            mat_view_retrabalho_{min_dias}_dias_distinct
-        WHERE
-            "DATA DO FECHAMENTO DA OS" BETWEEN '{data_inicio_str}' AND '{data_fim_str}'
-            {subquery_modelos_str}
-            {subquery_oficinas_str}
-            {subquery_secoes_str}
-            {subquery_os_str}
-        GROUP BY
-            year_month, "DESCRICAO DA OFICINA"
-        ORDER BY
-            year_month;
+            Retorno:
+            --------
+            pd.DataFrame
+                Um DataFrame contendo o ranking das peças, incluindo:
+                - `posicao`: posição no ranking com base no valor total gasto.
+                - `nome_peca`: nome da peça.
+                - `quantidade`: soma total das quantidades utilizadas.
+                - `frequencia`: número de ocorrências (linhas) da peça.
+                - `valor_total`: valor total gasto com a peça (quantidade * valor unitário).
+                - `valor_por_unidade`: valor médio por unidade da peça.
         """
+        # Validação simples de entrada
+        if not datas or len(datas) != 2:
+            raise ValueError("O parâmetro 'datas' deve conter duas datas: [data_inicial, data_final].")
+        
+        try:
+            data_inicio = pd.to_datetime(datas[0]).strftime("%d/%m/%Y")
+            data_fim = pd.to_datetime(datas[1]).strftime("%d/%m/%Y")
 
-        # Executa query
-        df = pd.read_sql(query, self.dbEngine)
+            subquery_secoes_str = subquery_secoes(lista_secoes)
+            subquery_modelo_str = subquery_modelos(lista_modelos)
+            subquery_ofcina_str = subquery_oficinas(lista_oficinas)
+            subquery_pecas_str = subquery_pecas(lista_pecas)
+                
 
-        # Arruma dt
-        df["year_month_dt"] = pd.to_datetime(df["year_month"], format="%Y-%m", errors="coerce")
-
-        # Funde (melt) colunas de retrabalho e correção
-        df_combinado = df.melt(
-            id_vars=["year_month_dt", "DESCRICAO DA OFICINA"],
-            value_vars=["PERC_RETRABALHO", "PERC_CORRECAO_PRIMEIRA"],
-            var_name="CATEGORIA",
-            value_name="PERC",
-        )
-
-        # Renomeia as colunas
-        df_combinado["CATEGORIA"] = df_combinado["CATEGORIA"].replace({"PERC_RETRABALHO": "RETRABALHO", "PERC_CORRECAO_PRIMEIRA": "CORRECAO_PRIMEIRA"})
-
-        return df_combinado
-
-    def get_evolucao_retrabalho_por_secao_por_mes(self, datas, min_dias, lista_modelos, lista_oficinas, lista_secaos, lista_os):
-        """Função para obter a evolução do retrabalho por seção por mes"""
-        # Extraí a data inicial (já em string)
-        data_inicio_str = datas[0]
-
-        # Extraí a data final
-        # Remove min_dias antes para evitar que a última OS não seja retrabalho
-        data_fim = pd.to_datetime(datas[1])
-        data_fim = data_fim - pd.DateOffset(days=min_dias + 1)
-        data_fim_str = data_fim.strftime("%Y-%m-%d")
-
-        # Subqueries
-        subquery_modelos_str = subquery_modelos(lista_modelos, termo_all="TODOS")
-        subquery_oficinas_str = subquery_oficinas(lista_oficinas)
-        subquery_secoes_str = subquery_secoes(lista_secaos)
-        subquery_os_str = subquery_os(lista_os)
-
-        query = f"""
-        SELECT
-            to_char(to_timestamp("DATA DO FECHAMENTO DA OS", 'YYYY-MM-DD"T"HH24:MI:SS'), 'YYYY-MM') AS year_month,
-            "DESCRICAO DA SECAO",
-            100 * ROUND(SUM(CASE WHEN retrabalho THEN 1 ELSE 0 END)::NUMERIC / COUNT(*)::NUMERIC, 4) AS "PERC_RETRABALHO",
-            100 * ROUND(SUM(CASE WHEN correcao_primeira THEN 1 ELSE 0 END)::NUMERIC / COUNT(*)::NUMERIC, 4) AS "PERC_CORRECAO_PRIMEIRA"
-        FROM
-            mat_view_retrabalho_{min_dias}_dias_distinct
-        WHERE
-            "DATA DO FECHAMENTO DA OS" BETWEEN '{data_inicio_str}' AND '{data_fim_str}'
-            {subquery_modelos_str}
-            {subquery_oficinas_str}
-            {subquery_secoes_str}
-            {subquery_os_str}
-        GROUP BY
-            year_month, "DESCRICAO DA SECAO"
-        ORDER BY
-            year_month;
-        """
-
-        # Executa Query
-        df = pd.read_sql(query, self.dbEngine)
-
-        # Arruma dt
-        df["year_month_dt"] = pd.to_datetime(df["year_month"], format="%Y-%m", errors="coerce")
-
-        # Funde (melt) colunas de retrabalho e correção
-        df_combinado = df.melt(
-            id_vars=["year_month_dt", "DESCRICAO DA SECAO"],
-            value_vars=["PERC_RETRABALHO", "PERC_CORRECAO_PRIMEIRA"],
-            var_name="CATEGORIA",
-            value_name="PERC",
-        )
-
-        # Renomeia as colunas
-        df_combinado["CATEGORIA"] = df_combinado["CATEGORIA"].replace({"PERC_RETRABALHO": "RETRABALHO", "PERC_CORRECAO_PRIMEIRA": "CORRECAO_PRIMEIRA"})
-
-        return df_combinado
-
-    def get_evolucao_retrabalho_por_nota_por_mes(self, datas, min_dias, lista_modelos, lista_oficinas, lista_secaos, lista_os):
-        """Função para obter a evolução do retrabalho por nota por mes"""
-
-        # Extraí a data inicial (já em string)
-        data_inicio_str = datas[0]
-
-        # Extraí a data final
-        # Remove min_dias antes para evitar que a última OS não seja retrabalho
-        data_fim = pd.to_datetime(datas[1])
-        data_fim = data_fim - pd.DateOffset(days=min_dias + 1)
-        data_fim_str = data_fim.strftime("%Y-%m-%d")
-
-        # Subqueries
-        subquery_modelos_str = subquery_modelos(lista_modelos, termo_all="TODOS")
-        subquery_oficinas_str = subquery_oficinas(lista_oficinas)
-        subquery_secoes_str = subquery_secoes(lista_secaos)
-        subquery_os_str = subquery_os(lista_os)
-
-        query = f"""
-        SELECT
-            to_char(to_timestamp("DATA DO FECHAMENTO DA OS", 'YYYY-MM-DD"T"HH24:MI:SS'), 'YYYY-MM') AS year_month,
-            to_char(to_timestamp("DATA DO FECHAMENTO DA OS", 'YYYY-MM-DD"T"HH24:MI:SS'), 'YYYY-MM') AS year_month_str,
-            AVG(CASE WHEN retrabalho THEN osclass."SCORE_SYMPTOMS_TEXT_QUALITY" ELSE NULL END) AS "NOTA_MEDIA_SINTOMA_COM_RETRABALHO",
-            AVG(CASE WHEN retrabalho THEN osclass."SCORE_SOLUTION_TEXT_QUALITY" ELSE NULL END) AS "NOTA_MEDIA_SOLUCAO_COM_RETRABALHO",
-            AVG(CASE WHEN correcao_primeira THEN osclass."SCORE_SYMPTOMS_TEXT_QUALITY" ELSE NULL END) AS "NOTA_MEDIA_SINTOMA_SOLUCAO",
-            AVG(CASE WHEN correcao_primeira THEN osclass."SCORE_SOLUTION_TEXT_QUALITY" ELSE NULL END) AS "NOTA_MEDIA_SOLUCAO_SOLUCAO"
-        FROM
-            mat_view_retrabalho_{min_dias}_dias AS retview
-        LEFT JOIN 
-            os_dados_classificacao AS osclass
-            ON retview."KEY_HASH" = osclass."KEY_HASH"
-        WHERE
-            "DATA DO FECHAMENTO DA OS" BETWEEN '{data_inicio_str}' AND '{data_fim_str}'
-            {subquery_modelos_str}
-            {subquery_oficinas_str}
-            {subquery_secoes_str}
-            {subquery_os_str}
-        GROUP BY
-            year_month
-        ORDER BY
-            year_month;
-        """
-
-        # Executa Query
-        df = pd.read_sql(query, self.dbEngine)
-
-        # Arruma dt
-        df["year_month_dt"] = pd.to_datetime(df["year_month"], format="%Y-%m", errors="coerce")
-
-        # Funde (melt) colunas de retrabalho e correção dos sintomas
-        df_sintoma = df.melt(
-            id_vars=["year_month_dt"],
-            value_vars=["NOTA_MEDIA_SINTOMA_COM_RETRABALHO", "NOTA_MEDIA_SINTOMA_SOLUCAO"],
-            var_name="CATEGORIA",
-            value_name="NOTA_MEDIA",
-        )
-
-        # Renomeia as colunas
-        df_sintoma["CATEGORIA"] = df_sintoma["CATEGORIA"].replace(
-            {"NOTA_MEDIA_SINTOMA_COM_RETRABALHO": "RETRABALHO", "NOTA_MEDIA_SINTOMA_SOLUCAO": "CORRECAO_PRIMEIRA"}
-        )
-
-        # Adiciona tipo
-        df_sintoma["TIPO"] = "SINTOMA"
-
-        # Funde (melt) colunas de retrabalho e correção das solucoes
-        df_solucao = df.melt(
-            id_vars=["year_month_dt"],
-            value_vars=["NOTA_MEDIA_SOLUCAO_COM_RETRABALHO", "NOTA_MEDIA_SOLUCAO_SOLUCAO"],
-            var_name="CATEGORIA",
-            value_name="NOTA_MEDIA",
-        )
-
-        # Renomeia as colunas
-        df_solucao["CATEGORIA"] = df_sintoma["CATEGORIA"].replace(
-            {"NOTA_MEDIA_SOLUCAO_COM_RETRABALHO": "RETRABALHO", "NOTA_MEDIA_SOLUCAO_SOLUCAO": "CORRECAO_PRIMEIRA"}
-        )
-
-        # Adiciona tipo
-        df_solucao["TIPO"] = "SOLUCAO"
-
-        # Concatena os dfs
-        df_combinado = pd.concat([df_sintoma, df_solucao])
-
-        return df_combinado
-
-    def get_evolucao_retrabalho_por_custo_por_mes(self, datas, min_dias, lista_modelos, lista_oficinas, lista_secaos, lista_os):
-        """Função para obter a evolução do retrabalho por custo por mes"""
-
-        # Extraí a data inicial (já em string)
-        data_inicio_str = datas[0]
-
-        # Extraí a data final
-        # Remove min_dias antes para evitar que a última OS não seja retrabalho
-        data_fim = pd.to_datetime(datas[1])
-        data_fim = data_fim - pd.DateOffset(days=min_dias + 1)
-        data_fim_str = data_fim.strftime("%Y-%m-%d")
-
-        # Subqueries
-        subquery_modelos_str = subquery_modelos(lista_modelos, termo_all="TODOS")
-        subquery_oficinas_str = subquery_oficinas(lista_oficinas)
-        subquery_secoes_str = subquery_secoes(lista_secaos)
-        subquery_os_str = subquery_os(lista_os)
-
-        query = f"""
-        SELECT
-            to_char(to_timestamp("DATA DO FECHAMENTO DA OS", 'YYYY-MM-DD"T"HH24:MI:SS'), 'YYYY-MM') AS year_month,
-            to_char(to_timestamp("DATA DO FECHAMENTO DA OS", 'YYYY-MM-DD"T"HH24:MI:SS'), 'YYYY-MM') AS year_month_str,
-            SUM(pg."VALOR") AS "TOTAL_GASTO",
-	        SUM(CASE WHEN retrabalho THEN pg."VALOR" ELSE NULL END) AS "TOTAL_GASTO_RETRABALHO"
-        FROM
-            mat_view_retrabalho_{min_dias}_dias_distinct AS main
-        JOIN
-            view_pecas_desconsiderando_combustivel pg 
-        ON
-            main."NUMERO DA OS" = pg."OS"
-        WHERE
-            "DATA DO FECHAMENTO DA OS" BETWEEN '{data_inicio_str}' AND '{data_fim_str}'
-            {subquery_modelos_str}
-            {subquery_oficinas_str}
-            {subquery_secoes_str}
-            {subquery_os_str}
-        GROUP BY
-            year_month
-        ORDER BY
-            year_month;
-        """
-
-        # Executa Query
-        df = pd.read_sql(query, self.dbEngine)
-
-        # Arruma dt
-        df["year_month_dt"] = pd.to_datetime(df["year_month"], format="%Y-%m", errors="coerce")
-
-        # Computa Perc
-        df["PERC_GASTO_RETRABALHO"] = df["TOTAL_GASTO_RETRABALHO"] / df["TOTAL_GASTO"]
-
-        # Arredonda valores
-        df["TOTAL_GASTO"] = df["TOTAL_GASTO"].round(2)
-        df["TOTAL_GASTO_RETRABALHO"] = df["TOTAL_GASTO_RETRABALHO"].round(2)
-
-        # Funde (melt) colunas de retrabalho e correção dos sintomas
-        df_custo = df.melt(
-            id_vars=["year_month_dt", "PERC_GASTO_RETRABALHO"],
-            value_vars=["TOTAL_GASTO", "TOTAL_GASTO_RETRABALHO"],
-            var_name="CATEGORIA",
-            value_name="GASTO",
-        )
-
-        return df_custo
-
-    def get_top_os_geral_retrabalho(self, datas, min_dias, lista_modelos, lista_oficinas, lista_secaos, lista_os):
-        """Função para obter as OSs com mais retrabalho"""
-
-        # Datas
-        data_inicio_str = datas[0]
-
-        # Remove min_dias antes para evitar que a última OS não seja retrabalho
-        data_fim = pd.to_datetime(datas[1])
-        data_fim = data_fim - pd.DateOffset(days=min_dias + 1)
-        data_fim_str = data_fim.strftime("%Y-%m-%d")
-
-        # Subqueries
-        subquery_modelos_str = subquery_modelos(lista_modelos, termo_all="TODOS")
-        subquery_oficinas_str = subquery_oficinas(lista_oficinas)
-        subquery_secoes_str = subquery_secoes(lista_secaos)
-        subquery_os_str = subquery_os(lista_os)
-
-        inner_subquery_modelos_str = subquery_modelos(lista_modelos, "main.", termo_all="TODOS")
-        inner_subquery_oficinas_str = subquery_oficinas(lista_oficinas, "main.")
-        inner_subquery_secoes_str = subquery_secoes(lista_secaos, "main.")
-        inner_subquery_os_str = subquery_os(lista_os, "main.")
-
-        query = f"""
-        WITH normaliza_problema AS (
-            SELECT
-                "DESCRICAO DA OFICINA",
-                "DESCRICAO DA SECAO",
-                "DESCRICAO DO SERVICO" as servico,
-                "CODIGO DO VEICULO",
-                "problem_no"
-            FROM
-                mat_view_retrabalho_{min_dias}_dias_distinct
-            WHERE
-                "DATA DO FECHAMENTO DA OS" BETWEEN '{data_inicio_str}' AND '{data_fim_str}'
-                {subquery_modelos_str}
-                {subquery_oficinas_str}
+            query = f"""
+                  WITH pecas AS (
+                SELECT DISTINCT ON (view_pecas_desconsiderando_combustivel."KEY_HASH")
+                    "PRODUTO" AS nome_peca,
+                    "QUANTIDADE",
+                    "VALOR",
+                    "OS",
+                    "PRODUTO",
+                    "DATA"
+                FROM view_pecas_desconsiderando_combustivel
+                LEFT JOIN os_dados 
+                    ON "NUMERO DA OS" = "OS"
+                WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'
+                and "TIPO DE MANUTENCAO" = 'Corretiva'
                 {subquery_secoes_str}
-                {subquery_os_str}
-            GROUP BY
-                "DESCRICAO DA OFICINA",
-                "DESCRICAO DA SECAO",
-                "DESCRICAO DO SERVICO",
-                "CODIGO DO VEICULO",
-                "problem_no"
-        ),
-        os_problema AS (
-            SELECT
-                "DESCRICAO DA OFICINA",
-                "DESCRICAO DA SECAO",
-                servico,
-                COUNT(*) AS num_problema
-            FROM
-                normaliza_problema
-            GROUP BY
-                "DESCRICAO DA OFICINA",
-                "DESCRICAO DA SECAO",
-                servico
-        )
-        SELECT
-            main."DESCRICAO DA OFICINA",
-            main."DESCRICAO DA SECAO",
-            main."DESCRICAO DO SERVICO",
-            COUNT(*) AS "TOTAL_OS",
-            SUM(CASE WHEN main.retrabalho THEN 1 ELSE 0 END) AS "TOTAL_RETRABALHO",
-            SUM(CASE WHEN main.correcao THEN 1 ELSE 0 END) AS "TOTAL_CORRECAO",
-            SUM(CASE WHEN main.correcao_primeira THEN 1 ELSE 0 END) AS "TOTAL_CORRECAO_PRIMEIRA",
-            100 * ROUND(SUM(CASE WHEN main.retrabalho THEN 1 ELSE 0 END)::NUMERIC / COUNT(*)::NUMERIC, 4) AS "PERC_RETRABALHO",
-            100 * ROUND(SUM(CASE WHEN main.correcao THEN 1 ELSE 0 END)::NUMERIC / COUNT(*)::NUMERIC, 4) AS "PERC_CORRECAO",
-            100 * ROUND(SUM(CASE WHEN main.correcao_primeira THEN 1 ELSE 0 END)::NUMERIC / COUNT(*)::NUMERIC, 4) AS "PERC_CORRECAO_PRIMEIRA",
-            COALESCE(op.num_problema, 0) AS "TOTAL_PROBLEMA"
-        FROM
-            mat_view_retrabalho_{min_dias}_dias_distinct AS main
-        LEFT JOIN
-            os_problema op
-        ON
-            main."DESCRICAO DA OFICINA" = op."DESCRICAO DA OFICINA"
-            AND main."DESCRICAO DA SECAO" = op."DESCRICAO DA SECAO"
-            AND main."DESCRICAO DO SERVICO" = op.servico
-        WHERE
-            main."DATA DO FECHAMENTO DA OS" BETWEEN '{data_inicio_str}' AND '{data_fim_str}'
-            {inner_subquery_modelos_str}
-            {inner_subquery_oficinas_str}
-            {inner_subquery_secoes_str}
-            {inner_subquery_os_str}
-        GROUP BY
-            main."DESCRICAO DA OFICINA",
-            main."DESCRICAO DA SECAO",
-            main."DESCRICAO DO SERVICO",
-            op.num_problema
-        ORDER BY
-            "PERC_RETRABALHO" DESC;
+                {subquery_modelo_str}
+                {subquery_ofcina_str}
+                {subquery_pecas_str}
+            ),
+            -- CTE DE RANKING PARA ALGUNS VALORES
+            ranked_pecas AS (
+                SELECT
+                    nome_peca,
+                    SUM("QUANTIDADE") AS quantidade,
+                    COUNT(*) AS frequencia,
+                    SUM("VALOR") AS valor_total,
+                    SUM("VALOR") / NULLIF(SUM("QUANTIDADE"), 0) AS valor_por_unidade,
+                    RANK() OVER (ORDER BY SUM("VALOR") DESC) AS posicao
+                FROM pecas
+                GROUP BY nome_peca
+            ),
+            -- CTE INICIAL DO RETRABALHO DA OS
+            retrabalho_os AS (
+                SELECT *
+                FROM mat_view_retrabalho_30_dias_distinct
+                where "TIPO DE MANUTENCAO" = 'Corretiva'
+            ),
+            -- CTE INTERMEDIARIA QUE IDENTIFICA E RETIRA AS OS
+            pecas_retrabalho_sem_duplicadas AS (
+                SELECT *
+                FROM (
+                    SELECT 
+                        pg.*,
+                        r.*,
+                        COUNT(*) OVER (
+                            PARTITION BY pg."PRODUTO", r."NUMERO DA OS"
+                        ) AS qtde_linhas
+                    FROM pecas pg
+                    LEFT JOIN retrabalho_os r
+                        ON pg."OS" = r."NUMERO DA OS"
+                ) sub
+                WHERE qtde_linhas = 1  -- mantém apenas grupos que têm 1 linha
+            ),
+            -- CTE QUE REALIZA OS CÁLCULOS VALORES GASTOS COM RETRABALHO DADO A TABELA JÁ FILTRADA pecas_retrabalho_sem_duplicadas
+            retrabalho_pecas AS (
+                SELECT 
+                    rp."PRODUTO" AS nome_peca,
+                    COALESCE(SUM(CASE WHEN rp."retrabalho" THEN rp."VALOR" ELSE 0 END), 0) AS total_gasto_retrabalho,
+                    COALESCE(SUM(rp."VALOR"), 0) AS total_gasto,
+                    ROUND(
+                        100 * SUM(CASE WHEN rp."retrabalho" IS NOT NULL THEN rp."VALOR" ELSE 0 END)::NUMERIC / NULLIF(SUM(rp."VALOR"), 0),
+                        2
+                    ) AS perc_gasto_retrabalho
+                FROM pecas_retrabalho_sem_duplicadas rp
+                GROUP BY rp."PRODUTO"
+            ),
+            -- CTE DE RETRABALHO "CRUA" QUE SERVE PARA IDENTIFICAR OS DUPLICADOS
+            retrabalho_contagem AS (
+                SELECT  
+                    pg."PRODUTO" AS nome_peca,
+                    pg."OS" AS numero_os,
+                    r."DESCRICAO DO SERVICO" AS descricao_servico
+                FROM pecas pg
+                LEFT JOIN retrabalho_os r
+                    ON pg."OS" = r."NUMERO DA OS"
+            ),
+            -- ESSA CTE REALIZA A CONTAGEM DE DUPLICADAS POR PEÇA E NUMERO DE OS. NA TEORIA DEVERIA TER UM NOME DE PÇ PARA CADA OS
+            contagem AS (
+                SELECT 
+                    nome_peca,
+                    numero_os,
+                    COUNT(*) AS qtd_linhas
+                FROM retrabalho_contagem
+                GROUP BY nome_peca, numero_os
+            ),
+            -- ESSA CTE CLASSIFICA CADA COMBINAÇÃO DE NOME DE PEÇA E OS COMO UNICA (1) OU DUPLICADA (>1)
+            classificacao AS (
+                SELECT
+                    nome_peca,
+                    CASE WHEN qtd_linhas = 1 THEN 1 ELSE 0 END AS unica,
+                    CASE WHEN qtd_linhas > 1 THEN 1 ELSE 0 END AS duplicada
+                FROM contagem
+            ),
+            -- AQUI É CALCULADO A PORCENTAGEM DE (UNICO/DUPLICAD0) POR NOME_PEÇA 
+            percentuais AS (
+                SELECT
+                    nome_peca,
+                    ROUND(100.0 * SUM(unica) / COUNT(*), 2) AS perc_unica,
+                    ROUND(100.0 * SUM(duplicada) / COUNT(*), 2) AS perc_duplicada
+                FROM classificacao
+                GROUP BY nome_peca
+            )
+            -- CÁLCULO FINAL
+            SELECT 
+                r.posicao,
+                r.nome_peca,
+                ROUND(r.quantidade, 2) AS quantidade,
+                ROUND(r.frequencia, 2) AS frequencia,
+                ROUND(r.valor_total, 2) AS valor_total,
+                ROUND(r.valor_por_unidade, 2) AS valor_por_unidade,
+                ROUND(COALESCE(rt.total_gasto_retrabalho, 0), 2) AS total_gasto_retrabalho,
+                ROUND(COALESCE(rt.total_gasto, 0), 2) AS total_gasto_com_left,
+                --COALESCE(rt.perc_gasto_retrabalho, 0) AS perc_gasto_retrabalho,
+                COALESCE(
+                ROUND(
+                    (rt.total_gasto_retrabalho / NULLIF(r.valor_total, 0)) * 100,
+                    2
+                ),
+                0
+                ) AS perc_gasto_retrabalho,
+                pt.perc_unica as indicador_confiabibilidade_retrabalho,
+                pt.perc_duplicada
+                --pt.perc_duplicada
+            FROM ranked_pecas r
+            LEFT JOIN retrabalho_pecas rt 
+                ON r.nome_peca = rt.nome_peca
+            left join percentuais pt
+                on pt.nome_peca = r.nome_peca
+            ORDER BY r.posicao;
+            """
+            return pd.read_sql(query, self.db_engine)
+        
+        except ValueError as e:
+            logging.error(f"Erro ao converter datas: get_custo_mensal_pecas {e}")
+            return pd.DataFrame()
+        except Exception as e:
+            logging.error(f"Erro ao retornar os dados: get_custo_mensal_pecas {e}")
+            return pd.DataFrame()
+        
+    def get_principais_pecas(
+        self,
+        datas: List[str],
+        lista_modelos: List[str],
+        lista_oficinas: List[str],
+        lista_secoes: List[str],
+        lista_pecas: List[str]
+    )-> pd.DataFrame:
         """
+            Retorna um ranking de peças mais utilizadas no período especificado, 
+            com base em filtros aplicados por modelo de veículo, oficina, seção e peças.
 
-        # Executa a query
-        df = pd.read_sql(query, self.dbEngine)
+            Parâmetros:
+            -----------
+            datas : List[str]
+                Lista com duas datas no formato string (ex: ["01/01/2024", "31/03/2024"])
+                representando o intervalo [data_inicial, data_final].
 
-        # Adiciona campo de relação entre OS e problemas
-        df["REL_OS_PROBLEMA"] = round(df["TOTAL_OS"] / df["TOTAL_PROBLEMA"], 2)
+            lista_modelos : List[str]
+                Lista de modelos de veículos a serem filtrados.
 
-        # Novo DF com notas LLM
-        query_llm = f"""
-        SELECT
-            main."DESCRICAO DA OFICINA",
-            main."DESCRICAO DA SECAO",
-            main."DESCRICAO DO SERVICO",
-            AVG(osclass."SCORE_SYMPTOMS_TEXT_QUALITY") AS "NOTA_MEDIA_SINTOMA",
-            AVG(osclass."SCORE_SOLUTION_TEXT_QUALITY") AS "NOTA_MEDIA_SOLUCAO",
-            100 * ROUND(SUM(CASE WHEN NOT osclass."SYMPTOMS_HAS_COHERENCE_TO_PROBLEM" THEN 1 ELSE 0 END)::NUMERIC / COUNT(*)::NUMERIC, 4) AS "PERC_SINTOMA_NAO_COERENTE",
-            100 * ROUND(SUM(CASE WHEN osclass."SYMPTOMS_HAS_COHERENCE_TO_PROBLEM" THEN 1 ELSE 0 END)::NUMERIC / COUNT(*)::NUMERIC, 4) AS "PERC_SINTOMA_COERENTE",
-            100 * ROUND(SUM(CASE WHEN NOT osclass."SOLUTION_HAS_COHERENCE_TO_PROBLEM" THEN 1 ELSE 0 END)::NUMERIC / COUNT(*)::NUMERIC, 4) AS "PERC_SOLUCAO_NAO_COERENTE",
-            100 * ROUND(SUM(CASE WHEN osclass."SOLUTION_HAS_COHERENCE_TO_PROBLEM" THEN 1 ELSE 0 END)::NUMERIC / COUNT(*)::NUMERIC, 4) AS "PERC_SOLUCAO_COERENTE"
-        FROM
-            mat_view_retrabalho_{min_dias}_dias_distinct AS main
-        LEFT JOIN 
-            os_dados_classificacao AS osclass
-        ON 
-            main."KEY_HASH" = osclass."KEY_HASH"
-        WHERE
-            main."DATA DO FECHAMENTO DA OS" BETWEEN '{data_inicio_str}' AND '{data_fim_str}'
-            {inner_subquery_modelos_str}
-            {inner_subquery_oficinas_str}
-            {inner_subquery_secoes_str}
-            {inner_subquery_os_str}
-        GROUP BY
-            main."DESCRICAO DA OFICINA",
-            main."DESCRICAO DA SECAO",
-            main."DESCRICAO DO SERVICO"
+            lista_oficinas : List[str]
+                Lista de oficinas a serem consideradas no filtro.
+
+            lista_secoes : List[str]
+                Lista de seções (ex: áreas, centros de custo, departamentos, etc.) para filtrar os dados.
+
+            lista_pecas : List[str]
+                Lista de nomes de peças para incluir no filtro.
+
+            Retorno:
+            --------
+            pd.DataFrame
+                Um DataFrame contendo o ranking das peças, incluindo:
+                - `posicao`: posição no ranking com base no valor total gasto.
+                - `nome_peca`: nome da peça.
+                - `quantidade`: soma total das quantidades utilizadas.
+                - `frequencia`: número de ocorrências (linhas) da peça.
+                - `valor_total`: valor total gasto com a peça (quantidade * valor unitário).
+                - `valor_por_unidade`: valor médio por unidade da peça.
         """
-        # Executa a query
-        df_llm = pd.read_sql(query_llm, self.dbEngine)
+        # Validação simples de entrada
+        if not datas or len(datas) != 2:
+            raise ValueError("O parâmetro 'datas' deve conter duas datas: [data_inicial, data_final].")
+        
+        try:
+            data_inicio = pd.to_datetime(datas[0]).strftime("%d/%m/%Y")
+            data_fim = pd.to_datetime(datas[1]).strftime("%d/%m/%Y")
 
-        # Lida com NaNs
-        df_llm = df_llm.fillna(0)
+            subquery_secoes_str = subquery_secoes(lista_secoes)
+            subquery_modelo_str = subquery_modelos(lista_modelos)
+            subquery_ofcina_str = subquery_oficinas(lista_oficinas)
+            subquery_pecas_str = subquery_pecas(lista_pecas)
+                
 
-        # Faz Merge
-        df_combinado = pd.merge(df, df_llm, on=["DESCRICAO DA OFICINA", "DESCRICAO DA SECAO", "DESCRICAO DO SERVICO"], how="left")
+            query = f"""
+            WITH pecas AS (
+                SELECT DISTINCT ON (view_pecas_desconsiderando_combustivel."KEY_HASH")
+                    "PRODUTO" AS nome_peca,
+                    "QUANTIDADE",
+                    "VALOR",
+                    "OS",
+                    "PRODUTO",
+                    "DATA"
+                FROM view_pecas_desconsiderando_combustivel
+                LEFT JOIN os_dados 
+                    ON "NUMERO DA OS" = "OS"
+                WHERE "DATA"::DATE  BETWEEN DATE '{data_inicio}' AND DATE '{data_fim}'
+                    and "TIPO DE MANUTENCAO" = 'Corretiva'
+                {subquery_secoes_str}
+                {subquery_modelo_str}
+                {subquery_ofcina_str}
+                {subquery_pecas_str}
+            ),
+            -- CTE DE RANKING PARA ALGUNS VALORES
+            ranked_pecas AS (
+                SELECT
+                    nome_peca,
+                    SUM("QUANTIDADE") AS quantidade,
+                    COUNT(*) AS frequencia,
+                    SUM("VALOR") AS valor_total,
+                    SUM("VALOR") / NULLIF(SUM("QUANTIDADE"), 0) AS valor_por_unidade,
+                    RANK() OVER (ORDER BY SUM("VALOR") DESC) AS posicao
+                FROM pecas
+                GROUP BY nome_peca
+            ),
+            -- CTE INICIAL DO RETRABALHO DA OS
+            retrabalho_os AS (
+                SELECT *
+                FROM mat_view_retrabalho_30_dias_distinct
+                where "TIPO DE MANUTENCAO" = 'Corretiva'
+            ),
+            -- CTE INTERMEDIARIA QUE IDENTIFICA E RETIRA AS OS
+            pecas_retrabalho_sem_duplicadas AS (
+                SELECT *
+                FROM (
+                    SELECT 
+                        pg.*,
+                        r.*,
+                        COUNT(*) OVER (
+                            PARTITION BY pg."PRODUTO", r."NUMERO DA OS"
+                        ) AS qtde_linhas
+                    FROM pecas pg
+                    LEFT JOIN retrabalho_os r
+                        ON pg."OS" = r."NUMERO DA OS"
+                ) sub
+                WHERE qtde_linhas = 1  -- mantém apenas grupos que têm 1 linha
+            ),
+            -- CTE QUE REALIZA OS CÁLCULOS VALORES GASTOS COM RETRABALHO DADO A TABELA JÁ FILTRADA pecas_retrabalho_sem_duplicadas
+            retrabalho_pecas AS (
+                SELECT 
+                    rp."PRODUTO" AS nome_peca,
+                    COALESCE(SUM(CASE WHEN rp."retrabalho" THEN rp."VALOR" ELSE 0 END), 0) AS total_gasto_retrabalho,
+                    COALESCE(SUM(rp."VALOR"), 0) AS total_gasto,
+                    ROUND(
+                        100 * SUM(CASE WHEN rp."retrabalho" IS NOT NULL THEN rp."VALOR" ELSE 0 END)::NUMERIC / NULLIF(SUM(rp."VALOR"), 0),
+                        2
+                    ) AS perc_gasto_retrabalho
+                FROM pecas_retrabalho_sem_duplicadas rp
+                GROUP BY rp."PRODUTO"
+            ),
+            -- CTE DE RETRABALHO "CRUA" QUE SERVE PARA IDENTIFICAR OS DUPLICADOS
+            retrabalho_contagem AS (
+                SELECT  
+                    pg."PRODUTO" AS nome_peca,
+                    pg."OS" AS numero_os,
+                    r."DESCRICAO DO SERVICO" AS descricao_servico
+                FROM pecas pg
+                LEFT JOIN retrabalho_os r
+                    ON pg."OS" = r."NUMERO DA OS"
+            ),
+            -- ESSA CTE REALIZA A CONTAGEM DE DUPLICADAS POR PEÇA E NUMERO DE OS. NA TEORIA DEVERIA TER UM NOME DE PÇ PARA CADA OS
+            contagem AS (
+                SELECT 
+                    nome_peca,
+                    numero_os,
+                    COUNT(*) AS qtd_linhas
+                FROM retrabalho_contagem
+                GROUP BY nome_peca, numero_os
+            ),
+            -- ESSA CTE CLASSIFICA CADA COMBINAÇÃO DE NOME DE PEÇA E OS COMO UNICA (1) OU DUPLICADA (>1)
+            classificacao AS (
+                SELECT
+                    nome_peca,
+                    CASE WHEN qtd_linhas = 1 THEN 1 ELSE 0 END AS unica,
+                    CASE WHEN qtd_linhas > 1 THEN 1 ELSE 0 END AS duplicada
+                FROM contagem
+            ),
+            -- AQUI É CALCULADO A PORCENTAGEM DE (UNICO/DUPLICAD0) POR NOME_PEÇA 
+            percentuais AS (
+                SELECT
+                    nome_peca,
+                    ROUND(100.0 * SUM(unica) / COUNT(*), 2) AS perc_unica,
+                    ROUND(100.0 * SUM(duplicada) / COUNT(*), 2) AS perc_duplicada
+                FROM classificacao
+                GROUP BY nome_peca
+            )
+            -- CÁLCULO FINAL
+            SELECT 
+                r.posicao,
+                r.nome_peca,
+                ROUND(r.quantidade, 2) AS quantidade,
+                ROUND(r.frequencia, 2) AS frequencia,
+                ROUND(r.valor_total, 2) AS valor_total,
+                ROUND(r.valor_por_unidade, 2) AS valor_por_unidade,
+                ROUND(COALESCE(rt.total_gasto_retrabalho, 0), 2) AS total_gasto_retrabalho,
+                ROUND(COALESCE(rt.total_gasto, 0), 2) AS total_gasto_com_left,
+                --COALESCE(rt.perc_gasto_retrabalho, 0) AS perc_gasto_retrabalho,
+                COALESCE(
+                ROUND(
+                    (rt.total_gasto_retrabalho / NULLIF(r.valor_total, 0)) * 100,
+                    2
+                ),
+                0
+                ) AS perc_gasto_retrabalho,
+                pt.perc_unica as indicador_confiabibilidade_retrabalho,
+                pt.perc_duplicada
+                --pt.perc_duplicada
+            FROM ranked_pecas r
+            LEFT JOIN retrabalho_pecas rt 
+                ON r.nome_peca = rt.nome_peca
+            left join percentuais pt
+                on pt.nome_peca = r.nome_peca
+            ORDER BY r.posicao;
+            """
+            return pd.read_sql(query, self.db_engine)
+        
+        except ValueError as e:
+            logging.error(f"Erro ao converter datas: get_custo_mensal_pecas {e}")
+            return pd.DataFrame()
+        except Exception as e:
+            logging.error(f"Erro ao retornar os dados: get_custo_mensal_pecas {e}")
+            return pd.DataFrame()
+    
 
-        # Lida com NaNs após merge
-        df_combinado = df_combinado.fillna(0)
+# -----> Arrumar alguma forma de arrumar essas função        
+    # def get_troca_pecas_rank(
+    #     self,
+    #     datas: List[str],
+    #     lista_modelos: List[str],
+    #     lista_oficinas: List[str],
+    #     lista_secoes: List[str],
+    #     lista_pecas: List[str]
+    # )-> pd.DataFrame:
+        
+    #     # Validação simples de entrada
+    #     if not datas or len(datas) != 2:
+    #         raise ValueError("O parâmetro 'datas' deve conter duas datas: [data_inicial, data_final].")
+        
+    #     try:
+    #         data_inicio = pd.to_datetime(datas[0]).strftime("%d/%m/%Y")
+    #         data_fim = pd.to_datetime(datas[1]).strftime("%d/%m/%Y")
 
-        # Novo DF com custo
-        query_custo = f"""
-        SELECT
-            main."DESCRICAO DA OFICINA",
-            main."DESCRICAO DA SECAO",
-            main."DESCRICAO DO SERVICO",
-            SUM(pg."VALOR") AS "TOTAL_GASTO",
-            SUM(CASE WHEN retrabalho THEN pg."VALOR" ELSE NULL END) AS "TOTAL_GASTO_RETRABALHO"
-        FROM
-            mat_view_retrabalho_{min_dias}_dias_distinct AS main
-        JOIN
-            view_pecas_desconsiderando_combustivel pg 
-        ON
-            main."NUMERO DA OS" = pg."OS"
-        WHERE
-            main."DATA DO FECHAMENTO DA OS" BETWEEN '{data_inicio_str}' AND '{data_fim_str}'
-            {inner_subquery_modelos_str}
-            {inner_subquery_oficinas_str}
-            {inner_subquery_secoes_str}
-            {inner_subquery_os_str}
-        GROUP BY
-            main."DESCRICAO DA OFICINA",
-            main."DESCRICAO DA SECAO",
-            main."DESCRICAO DO SERVICO"
-        """
+    #         subquery_secoes_str = subquery_secoes(lista_secoes)
+    #         subquery_modelo_str = subquery_modelos(lista_modelos)
+    #         subquery_ofcina_str = subquery_oficinas(lista_oficinas)
+    #         subquery_pecas_str = subquery_pecas(lista_pecas)
+                
 
-        # Executa a query
-        df_custo = pd.read_sql(query_custo, self.dbEngine)
+    #         query = f"""
+    #             select
+    #                 "id",
+    #                 "EQUIPAMENTO",
+    #                 "MODELO",
+    #                 "PRODUTO" AS nome_peca,
+    #                 "QUANTIDADE",
+    #                 "VALOR",
+    #                 "DATA"
+    #             FROM pecas_gerais pg
+    #             LEFT JOIN os_dados od ON "NUMERO DA OS" = "OS"
+    #             WHERE "DATA" BETWEEN '{data_inicio}' AND '{data_fim}'    
+    #                 {subquery_secoes_str}
+    #                 {subquery_modelo_str}
+    #                 {subquery_ofcina_str}
+    #                 {subquery_pecas_str};
+    #         """
+    #         df = pd.read_sql(query, self.db_engine)
 
-        # Arredonda valores
-        df_custo["TOTAL_GASTO"] = df_custo["TOTAL_GASTO"].round(2)
-        df_custo["TOTAL_GASTO_RETRABALHO"] = df_custo["TOTAL_GASTO_RETRABALHO"].round(2)
+    #         # Removendo duplicadas e convertendo para datetime antes do agrupamento
+    #         df.drop_duplicates(subset="id", inplace=True)
+    #         df["DATA"] = pd.to_datetime(df["DATA"], dayfirst=True, errors="coerce")
 
-        # Lida com NaNs
-        df_custo = df_custo.fillna(0)
+    #         # 1. Agrupar dados por EQUIPAMENTO, MODELO e nome_peca
+    #         df["primeiro_mes"] = df.groupby(["EQUIPAMENTO", "MODELO", "nome_peca"])["DATA"].transform("min").dt.to_period("M").dt.to_timestamp()
+    #         df["ultimo_mes"] = df.groupby(["EQUIPAMENTO", "MODELO", "nome_peca"])["DATA"].transform("max").dt.to_period("M").dt.to_timestamp()
+    #          # Verificando se as colunas "primeiro_mes" e "ultimo_mes" foram criadas corretamente
+    #         print(df[["EQUIPAMENTO", "MODELO", "nome_peca", "primeiro_mes", "ultimo_mes"]].head())  
 
-        # Faz merge novamente
-        df_combinado = pd.merge(df_combinado, df_custo, on=["DESCRICAO DA OFICINA", "DESCRICAO DA SECAO", "DESCRICAO DO SERVICO"], how="left")
+    #         # 2. Calcular quantidade total e valor total
+    #         agg = df.groupby(["EQUIPAMENTO", "MODELO", "nome_peca"]).agg(
+    #             quantidade_total=("QUANTIDADE", "sum"),
+    #             valor_total=("VALOR", lambda x: (x * df.loc[x.index, "QUANTIDADE"]).sum())
+    #         ).reset_index()
 
-        # Lida com NaNs após merge
-        df_combinado = df_combinado.fillna(0)
+    #         # 3. Calcular meses de diferença e média mensal
+    #         agg["meses"] = ((agg["ultimo_mes"].dt.year - agg["primeiro_mes"].dt.year) * 12 +
+    #                         (agg["ultimo_mes"].dt.month - agg["primeiro_mes"].dt.month))
+    #         agg["media_mensal"] = agg["valor_total"] / agg["meses"].replace(0, pd.NA)
 
-        return df_combinado
+    #         # 4. Calcular média por modelo
+    #         media_modelo = agg.groupby(["MODELO", "nome_peca"])["valor_total"].mean().reset_index(name="valor_medio_modelo")
+
+    #         # 5. Adicionar média do modelo diretamente no agg
+    #         agg = agg.merge(media_modelo, on=["MODELO", "nome_peca"], how="left")
+
+    #         # 6. Calcular a diferença de valor
+    #         agg["diferenca_valor"] = agg["valor_total"] - agg["valor_medio_modelo"]
+
+    #         # 7. Ordenar os resultados por quantidade
+    #         agg = agg.sort_values("quantidade_total", ascending=False)
+
+    #         return agg
+    #     except ValueError as e:
+    #         logging.error(f"Erro ao converter datas: get_custo_mensal_pecas {e}")
+    #         return pd.DataFrame()
+    #     except Exception as e:
+    #         logging.error(f"Erro ao retornar os dados: get_custo_mensal_pecas {e}")
+    #         return pd.DataFrame()        

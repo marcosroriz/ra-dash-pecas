@@ -30,15 +30,46 @@ def subquery_os(lista_os, prefix="", termo_all="TODAS"):
 
     return f'AND {prefix}"DESCRICAO DO SERVICO" IN ({valores})'
 
+def subquery_pecas(lista_os, prefix="", termo_all="TODAS"):
+    if not lista_os or termo_all in lista_os:
+        return ""
+    valores = ", ".join([f"'{x}'" for x in lista_os if x])  
+    if not valores:  
+        return ""
 
+    return f'AND {prefix}"PRODUTO" IN ({valores})'
 
-def subquery_modelos(lista_modelos, prefix="", termo_all="TODAS"):
+def subquery_pecas2(lista_os, prefix="", termo_all="TODAS"):
+    if not lista_os or termo_all in lista_os:
+        return ""
+    valores = ", ".join([f"'{x}'" for x in lista_os if x])  
+    if not valores:  
+        return ""
+
+    return f'AND {prefix}"nome_pecas" IN ({valores})'
+
+def subquery_pecas3(lista_os, prefix="", termo_all="TODAS"):
+    if not lista_os or termo_all in lista_os:
+        return ""
+    valores = ", ".join([f"'{x}'" for x in lista_os if x])  
+    if not valores:  
+        return ""
+
+    return f'AND {prefix}"nome_peça" IN ({valores})'
+
+def subquery_modelos(lista_modelos, prefix="", termo_all="TODOS"):
     query = ""
     if termo_all not in lista_modelos:
-        query = f"""AND {prefix}"DESCRICAO DO MODELO" IN ({', '.join([f"'{x}'" for x in lista_modelos])})"""
+        query = f"""AND {prefix}"MODELO" IN ({', '.join([f"'{x}'" for x in lista_modelos])})"""
 
     return query
 
+def subquery_modelos_peças(lista_modelos, prefix="", termo_all="TODOS"):
+    query = ""
+    if termo_all not in lista_modelos:
+        query = f"""AND {prefix}"Model" IN ({', '.join([f"'{x}'" for x in lista_modelos])})"""
+
+    return query
 
 def subquery_veiculos(lista_veiculos, prefix="", termo_all="TODAS"):
     query = ""
@@ -46,6 +77,7 @@ def subquery_veiculos(lista_veiculos, prefix="", termo_all="TODAS"):
         query = f"""AND {prefix}"CODIGO DO VEICULO" IN ({', '.join([f"'{x}'" for x in lista_veiculos])})"""
 
     return query
+
 
 def subquery_equipamentos(lista_veiculos, prefix=""):
     query = ""
