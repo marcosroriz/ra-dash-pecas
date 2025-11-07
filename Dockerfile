@@ -9,11 +9,8 @@ COPY requirements.txt .
 
 # Instala dependências do sistema
 RUN apt-get update && apt-get install -y \
-    unixodbc \
-    unixodbc-dev \
     build-essential \
     libpq-dev \
-    gcc \
     curl \
     gnupg2 \
   && apt-get update \
