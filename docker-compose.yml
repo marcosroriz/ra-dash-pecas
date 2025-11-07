@@ -1,0 +1,20 @@
+services:
+  dash-rapido-araguaia-pecas:
+    build: .
+    image: ceia-ufg/dash-rapido-araguaia-pecas
+    container_name: dash-rapido-araguaia-pecas
+    
+    env_file:
+      - src/.env
+    
+    ports:
+      - "${PORT}:${PORT}"
+    
+    networks:
+      - dash-rapido-araguaia-pecas
+
+    restart: unless-stopped
+
+networks:
+  dash-rapido-araguaia-pecas:
+    driver: bridge

@@ -86,11 +86,17 @@ pio.templates.default = "tema"
 # DASH #######################################################################
 ##############################################################################
 
+BASE_DIR = os.getcwd()  
+
+# Caminhos absolutos
+ASSETS_PATH = os.path.join(BASE_DIR, "assets")
+PAGES_PATH = os.path.join(BASE_DIR, "pages") 
+
 # Dash
 app = Dash(
-    "Dashboard de OSs",
-    # assets_folder="/var/www/ra-retrabalho/src/assets",
-    # pages_folder="/var/www/ra-retrabalho/src/pages",
+    name="Dashboard de OSs",
+    assets_folder=ASSETS_PATH,
+    pages_folder=PAGES_PATH,
     external_stylesheets=stylesheets,
     external_scripts=scripts,
     use_pages=True,
