@@ -1,0 +1,20 @@
+services:
+  dash-ra-pecas:
+    build: .
+    image: ceia-ufg/dash-ra-pecas
+    container_name: dash-ra-pecas
+
+    env_file:
+      - src/.env
+
+    ports:
+      - "${PORT}:${PORT}"
+
+    networks:
+      - dash-ra-pecas
+
+    restart: unless-stopped
+
+networks:
+  dash-ra-pecas:
+    driver: bridge
