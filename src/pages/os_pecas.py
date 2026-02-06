@@ -87,8 +87,9 @@ lista_todas_os.insert(0, {"LABEL": "TODAS"})
 
 @callback(
     Output("input-intervalo-datas-pecas-os", "maxDate"),
-    Output("input-intervalo-datas-pecas-os", "value"),
+    Output("input-intervalo-datas-pecas-os", "value", allow_duplicate=True),  # allow_duplicate para permitir atualizar o valor mesmo que seja o mesmo (útil para resetar o input)
     Input("url", "pathname"),  # fires on page load
+    prevent_initial_call=True,
 )
 def cb_input_datas_home_dinamico(_):
     hoje = date.today()
