@@ -53,6 +53,15 @@ lista_todos_modelos_veiculos.insert(0, {"MODELO": "TODOS"})
 ##############################################################################
 
 @callback(
+    Output("input-intervalo-datas-pecas-os", "maxDate"),
+    Output("input-intervalo-datas-pecas-os", "value"),
+    Input("url", "pathname"),  # fires on page load
+)
+def cb_input_datas_home_dinamico(_):
+    hoje = date.today()
+    return hoje, [date(2024, 8, 1), hoje]
+
+@callback(
     [Output("tabela-relatorio-pecas-gerais", "rowData"),
      Output("boxplot-vida-util-total-pecas", "figure")],
     [

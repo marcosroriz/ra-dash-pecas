@@ -85,6 +85,14 @@ lista_todas_os.insert(0, {"LABEL": "TODAS"})
 # Callbacks para os inputs ###################################################
 ##############################################################################
 
+@callback(
+    Output("input-intervalo-datas-pecas-os", "maxDate"),
+    Output("input-intervalo-datas-pecas-os", "value"),
+    Input("url", "pathname"),  # fires on page load
+)
+def cb_input_datas_home_dinamico(_):
+    hoje = date.today()
+    return hoje, [date(2024, 8, 1), hoje]
 
 # Função para validar o input
 def input_valido(datas, lista_modelos, lista_oficinas, lista_secaos, lista_os):
