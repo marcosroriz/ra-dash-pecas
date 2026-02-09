@@ -9,7 +9,7 @@
 # Bibliotecas básicas
 from datetime import date
 import pandas as pd
-import datetime 
+import datetime
 
 # Importar bibliotecas do dash básicas e plotly
 from dash import Dash, html, dcc, callback, Input, Output, State
@@ -33,6 +33,7 @@ from db import PostgresSingleton
 
 # Imports gerais
 from modules.entities_utils import *
+
 # Imports específicos
 from modules.os.graficos import *
 from modules.os.os_service import ServiceOS
@@ -76,7 +77,6 @@ lista_todas_os = df_lista_os.to_dict(orient="records")
 lista_todas_os.insert(0, {"LABEL": "TODAS"})
 
 
-
 ##############################################################################
 # CALLBACKS ##################################################################
 ##############################################################################
@@ -85,15 +85,6 @@ lista_todas_os.insert(0, {"LABEL": "TODAS"})
 # Callbacks para os inputs ###################################################
 ##############################################################################
 
-@callback(
-    Output("input-intervalo-datas-pecas-os", "maxDate"),
-    Output("input-intervalo-datas-pecas-os", "value", allow_duplicate=True),  # allow_duplicate para permitir atualizar o valor mesmo que seja o mesmo (útil para resetar o input)
-    Input("url", "pathname"),  # fires on page load
-    prevent_initial_call=True,
-)
-def cb_input_datas_home_dinamico(_):
-    hoje = date.today()
-    return hoje, [date(2024, 8, 1), hoje]
 
 # Função para validar o input
 def input_valido(datas, lista_modelos, lista_oficinas, lista_secaos, lista_os):
@@ -160,7 +151,7 @@ def corrige_input_oficina(lista_oficinas):
         Input("input-select-oficina-pecas-os", "value"),
         Input("input-select-secao-pecas-os", "value"),
         Input("input-select-pecas-os", "value"),
-    ]
+    ],
 )
 def corrige_input_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_os):
     """
@@ -197,11 +188,10 @@ def corrige_input_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_
     return lista_options, corrige_input(lista_os_corrigida)
 
 
-
-
 ##############################################################################
 # Callbacks para os gráficos #################################################
 ##############################################################################
+
 
 @callback(
     Output("graph-pecas-mais-trocadas", "figure"),
@@ -223,6 +213,7 @@ def plota_grafico_barra_pecas_trocadas(datas, lista_modelos, lista_oficina, list
     # Gera o gráfico
     fig = grafico_pecas_mais_trocadas(df)
     return fig
+
 
 ##############################################################################
 ### Callbacks para os labels #################################################
@@ -288,229 +279,237 @@ def gera_labels_inputs(campo):
 ##############################################################################
 # Layout #####################################################################
 ##############################################################################
-layout = dbc.Container(
-    [
-        # Loading
-        # dmc.LoadingOverlay(
-        #     visible=True,
-        #     id="loading-overlay-guia-geral",
-        #     loaderProps={"size": "xl"},
-        #     overlayProps={
-        #         "radius": "lg",
-        #         "blur": 2,
-        #         "style": {
-        #             "top": 0,  # Start from the top of the viewport
-        #             "left": 0,  # Start from the left of the viewport
-        #             "width": "100vw",  # Cover the entire width of the viewport
-        #             "height": "100vh",  # Cover the entire height of the viewport
-        #         },
-        #     },
-        #     zIndex=10,
-        # ),
-        # Cabeçalho
-        dbc.Row(
-            [
-                dbc.Col(
-                    [
-                        # Cabeçalho e Inputs
-                        dbc.Row(
-                            [
-                                html.Hr(),
-                                dbc.Row(
-                                    [
-                                        dbc.Col(DashIconify(icon="mdi:tools", width=45), width="auto"),
-                                        dbc.Col(
-                                            html.H1(
-                                                [
-                                                    "Visão das\u00a0",
-                                                    html.Strong("peças por OS"),
-                                                ],
-                                                className="align-self-center",
+def layout():
+    return dbc.Container(
+        [
+            # Loading
+            # dmc.LoadingOverlay(
+            #     visible=True,
+            #     id="loading-overlay-guia-geral",
+            #     loaderProps={"size": "xl"},
+            #     overlayProps={
+            #         "radius": "lg",
+            #         "blur": 2,
+            #         "style": {
+            #             "top": 0,  # Start from the top of the viewport
+            #             "left": 0,  # Start from the left of the viewport
+            #             "width": "100vw",  # Cover the entire width of the viewport
+            #             "height": "100vh",  # Cover the entire height of the viewport
+            #         },
+            #     },
+            #     zIndex=10,
+            # ),
+            # Cabeçalho
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            # Cabeçalho e Inputs
+                            dbc.Row(
+                                [
+                                    html.Hr(),
+                                    dbc.Row(
+                                        [
+                                            dbc.Col(DashIconify(icon="mdi:tools", width=45), width="auto"),
+                                            dbc.Col(
+                                                html.H1(
+                                                    [
+                                                        "Visão das\u00a0",
+                                                        html.Strong("peças por OS"),
+                                                    ],
+                                                    className="align-self-center",
+                                                ),
+                                                width=True,
                                             ),
-                                            width=True,
+                                        ],
+                                        align="center",
+                                    ),
+                                    dmc.Space(h=15),
+                                    html.Hr(),
+                                    dbc.Col(
+                                        dbc.Card(
+                                            [
+                                                html.Div(
+                                                    [
+                                                        dbc.Label("Data (intervalo) de análise"),
+                                                        dmc.DatePicker(
+                                                            id="input-intervalo-datas-pecas-os",
+                                                            allowSingleDateInRange=True,
+                                                            type="range",
+                                                            minDate=date(2024, 8, 1),
+                                                            maxDate=date.today(),
+                                                            value=[date(2024, 8, 1), date.today()],
+                                                        ),
+                                                    ],
+                                                    className="dash-bootstrap",
+                                                ),
+                                            ],
+                                            body=True,
                                         ),
-                                    ],
-                                    align="center",
-                                ),
-                                dmc.Space(h=15),
-                                html.Hr(),
-                                dbc.Col(
-                                    dbc.Card(
-                                        [
-                                            html.Div(
-                                                [
-                                                    dbc.Label("Data (intervalo) de análise"),
-                                                    dmc.DatePicker(
-                                                        id="input-intervalo-datas-pecas-os",
-                                                        allowSingleDateInRange=True,
-                                                        type="range",
-                                                        minDate=date(2024, 8, 1),
-                                                        maxDate=date.today(),
-                                                        value=[date(2024, 8, 1), date.today()],
-                                                    ),
-                                                ],
-                                                className="dash-bootstrap",
-                                            ),
-                                        ],
-                                        body=True,
+                                        md=6,
                                     ),
-                                    md=6,
-                                ),
-                                dbc.Col(
-                                    dbc.Card(
-                                        [
-                                            html.Div(
-                                                [
-                                                    dbc.Label("Modelos de Veículos"),
-                                                    dcc.Dropdown(
-                                                        id="input-select-modelo-veiculos-pecas-os",
-                                                        options=[
-                                                            {
-                                                                "label": os["MODELO"],
-                                                                "value": os["MODELO"],
-                                                            }
-                                                            for os in lista_todos_modelos_veiculos
-                                                        ],
-                                                        multi=True,
-                                                        value=["TODOS"],
-                                                        placeholder="Selecione um ou mais modelos...",
-                                                    ),
-                                                ],
-                                                className="dash-bootstrap",
-                                            ),
-                                        ],
-                                        body=True,
-                                    ),
-                                    md=6,
-                                ),
-                                dmc.Space(h=10),
-                                dbc.Col(
-                                    dbc.Card(
-                                        [
-                                            html.Div(
-                                                [
-                                                    dbc.Label("Oficinas"),
-                                                    dcc.Dropdown(
-                                                        id="input-select-oficina-pecas-os",
-                                                        options=[{"label": os["LABEL"], "value": os["LABEL"]} for os in lista_todas_oficinas],
-                                                        multi=True,
-                                                        value=["TODAS"],
-                                                        placeholder="Selecione uma ou mais oficinas...",
-                                                    ),
-                                                ],
-                                                className="dash-bootstrap",
-                                            ),
-                                        ],
-                                        body=True,
-                                    ),
-                                    md=6,
-                                ),
-                                dbc.Col(
-                                    dbc.Card(
-                                        [
-                                            html.Div(
-                                                [
-                                                    dbc.Label("Seções (categorias) de manutenção"),
-                                                    dcc.Dropdown(
-                                                        id="input-select-secao-pecas-os",
-                                                        options=[
-                                                            # {"label": "TODAS", "value": "TODAS"},
-                                                            # {
-                                                            #     "label": "BORRACHARIA",
-                                                            #     "value": "MANUTENCAO BORRACHARIA",
-                                                            # },
-                                                            {
-                                                                "label": "ELETRICA",
-                                                                "value": "MANUTENCAO ELETRICA",
-                                                            },
-                                                            # {"label": "GARAGEM", "value": "MANUTENÇÃO GARAGEM"},
-                                                            # {
-                                                            #     "label": "LANTERNAGEM",
-                                                            #     "value": "MANUTENCAO LANTERNAGEM",
-                                                            # },
-                                                            # {"label": "LUBRIFICAÇÃO", "value": "LUBRIFICAÇÃO"},
-                                                            {
-                                                                "label": "MECANICA",
-                                                                "value": "MANUTENCAO MECANICA",
-                                                            },
-                                                            # {"label": "PINTURA", "value": "MANUTENCAO PINTURA"},
-                                                            # {
-                                                            #     "label": "SERVIÇOS DE TERCEIROS",
-                                                            #     "value": "SERVIÇOS DE TERCEIROS",
-                                                            # },
-                                                            # {
-                                                            #     "label": "SETOR DE ALINHAMENTO",
-                                                            #     "value": "SETOR DE ALINHAMENTO",
-                                                            # },
-                                                            # {
-                                                            #     "label": "SETOR DE POLIMENTO",
-                                                            #     "value": "SETOR DE POLIMENTO",
-                                                            # },
-                                                        ],
-                                                        multi=True,
-                                                        value=["MANUTENCAO ELETRICA", "MANUTENCAO MECANICA"],
-                                                        placeholder="Selecione uma ou mais seções...",
-                                                    ),
-                                                ],
-                                                # className="dash-bootstrap",
-                                            ),
-                                        ],
-                                        body=True,
-                                    ),
-                                    md=6,
-                                ),
-                                dmc.Space(h=10),
-                                dbc.Col(
-                                    dbc.Card(
-                                        [
-                                            html.Div(
-                                                [
-                                                    dbc.Label("OS específica"),
-                                                    dcc.Dropdown(
-                                                        id="input-select-pecas-os",
-                                                        options=[{"label": os["LABEL"], "value": os["LABEL"]} for os in lista_todas_os],
-                                                        multi=True,
-                                                        value=["TODAS"],
-                                                        placeholder="Selecione uma ou mais OS específicas...",
-                                                    ),
-                                                ],
-                                                className="dash-bootstrap",
-                                            ),
-                                        ],
-                                        body=True,
-                                    ),
-                                    md=12,
-                                ),
-                                dmc.Space(h=30),
-                                dbc.Row(
-                                    [
-                                        dbc.Col(DashIconify(icon="mdi:chart-line", width=45), width="auto"),
-                                        dbc.Col(
-                                            dbc.Row(
-                                                [
-                                                    html.H4(
-                                                        "Gráfico de pecas mais trocadas por OS",
-                                                        className="align-self-center",
-                                                    ),
-                                                    dmc.Space(h=5),
-                                                    gera_labels_inputs("pecas-mais-trocadas"),
-                                                ]
-                                            ),
-                                            width=True,
+                                    dbc.Col(
+                                        dbc.Card(
+                                            [
+                                                html.Div(
+                                                    [
+                                                        dbc.Label("Modelos de Veículos"),
+                                                        dcc.Dropdown(
+                                                            id="input-select-modelo-veiculos-pecas-os",
+                                                            options=[
+                                                                {
+                                                                    "label": os["MODELO"],
+                                                                    "value": os["MODELO"],
+                                                                }
+                                                                for os in lista_todos_modelos_veiculos
+                                                            ],
+                                                            multi=True,
+                                                            value=["TODOS"],
+                                                            placeholder="Selecione um ou mais modelos...",
+                                                        ),
+                                                    ],
+                                                    className="dash-bootstrap",
+                                                ),
+                                            ],
+                                            body=True,
                                         ),
-                                    ],
-                                    align="center",
-                                ),
-                                dcc.Graph(id="graph-pecas-mais-trocadas"),
-                                
-                            ]
-                        ),
-                    ],
-                ),
-            ]
-        ),
-    ]
-)
+                                        md=6,
+                                    ),
+                                    dmc.Space(h=10),
+                                    dbc.Col(
+                                        dbc.Card(
+                                            [
+                                                html.Div(
+                                                    [
+                                                        dbc.Label("Oficinas"),
+                                                        dcc.Dropdown(
+                                                            id="input-select-oficina-pecas-os",
+                                                            options=[
+                                                                {"label": os["LABEL"], "value": os["LABEL"]}
+                                                                for os in lista_todas_oficinas
+                                                            ],
+                                                            multi=True,
+                                                            value=["TODAS"],
+                                                            placeholder="Selecione uma ou mais oficinas...",
+                                                        ),
+                                                    ],
+                                                    className="dash-bootstrap",
+                                                ),
+                                            ],
+                                            body=True,
+                                        ),
+                                        md=6,
+                                    ),
+                                    dbc.Col(
+                                        dbc.Card(
+                                            [
+                                                html.Div(
+                                                    [
+                                                        dbc.Label("Seções (categorias) de manutenção"),
+                                                        dcc.Dropdown(
+                                                            id="input-select-secao-pecas-os",
+                                                            options=[
+                                                                # {"label": "TODAS", "value": "TODAS"},
+                                                                # {
+                                                                #     "label": "BORRACHARIA",
+                                                                #     "value": "MANUTENCAO BORRACHARIA",
+                                                                # },
+                                                                {
+                                                                    "label": "ELETRICA",
+                                                                    "value": "MANUTENCAO ELETRICA",
+                                                                },
+                                                                # {"label": "GARAGEM", "value": "MANUTENÇÃO GARAGEM"},
+                                                                # {
+                                                                #     "label": "LANTERNAGEM",
+                                                                #     "value": "MANUTENCAO LANTERNAGEM",
+                                                                # },
+                                                                # {"label": "LUBRIFICAÇÃO", "value": "LUBRIFICAÇÃO"},
+                                                                {
+                                                                    "label": "MECANICA",
+                                                                    "value": "MANUTENCAO MECANICA",
+                                                                },
+                                                                # {"label": "PINTURA", "value": "MANUTENCAO PINTURA"},
+                                                                # {
+                                                                #     "label": "SERVIÇOS DE TERCEIROS",
+                                                                #     "value": "SERVIÇOS DE TERCEIROS",
+                                                                # },
+                                                                # {
+                                                                #     "label": "SETOR DE ALINHAMENTO",
+                                                                #     "value": "SETOR DE ALINHAMENTO",
+                                                                # },
+                                                                # {
+                                                                #     "label": "SETOR DE POLIMENTO",
+                                                                #     "value": "SETOR DE POLIMENTO",
+                                                                # },
+                                                            ],
+                                                            multi=True,
+                                                            value=["MANUTENCAO ELETRICA", "MANUTENCAO MECANICA"],
+                                                            placeholder="Selecione uma ou mais seções...",
+                                                        ),
+                                                    ],
+                                                    # className="dash-bootstrap",
+                                                ),
+                                            ],
+                                            body=True,
+                                        ),
+                                        md=6,
+                                    ),
+                                    dmc.Space(h=10),
+                                    dbc.Col(
+                                        dbc.Card(
+                                            [
+                                                html.Div(
+                                                    [
+                                                        dbc.Label("OS específica"),
+                                                        dcc.Dropdown(
+                                                            id="input-select-pecas-os",
+                                                            options=[
+                                                                {"label": os["LABEL"], "value": os["LABEL"]}
+                                                                for os in lista_todas_os
+                                                            ],
+                                                            multi=True,
+                                                            value=["TODAS"],
+                                                            placeholder="Selecione uma ou mais OS específicas...",
+                                                        ),
+                                                    ],
+                                                    className="dash-bootstrap",
+                                                ),
+                                            ],
+                                            body=True,
+                                        ),
+                                        md=12,
+                                    ),
+                                    dmc.Space(h=30),
+                                    dbc.Row(
+                                        [
+                                            dbc.Col(DashIconify(icon="mdi:chart-line", width=45), width="auto"),
+                                            dbc.Col(
+                                                dbc.Row(
+                                                    [
+                                                        html.H4(
+                                                            "Gráfico de pecas mais trocadas por OS",
+                                                            className="align-self-center",
+                                                        ),
+                                                        dmc.Space(h=5),
+                                                        gera_labels_inputs("pecas-mais-trocadas"),
+                                                    ]
+                                                ),
+                                                width=True,
+                                            ),
+                                        ],
+                                        align="center",
+                                    ),
+                                    dcc.Graph(id="graph-pecas-mais-trocadas"),
+                                ]
+                            ),
+                        ],
+                    ),
+                ]
+            ),
+        ]
+    )
+
+
 ##############################################################################
 # Registro da página #########################################################
 ##############################################################################

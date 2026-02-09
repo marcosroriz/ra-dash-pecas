@@ -7,7 +7,7 @@
 # IMPORTS ####################################################################
 ##############################################################################
 # Bibliotecas básicas
-import datetime 
+import datetime
 from datetime import date
 import pandas as pd
 
@@ -33,6 +33,7 @@ from db import PostgresSingleton
 
 # Imports gerais
 from modules.entities_utils import *
+
 # Imports específicos
 from modules.home.home_service import HomeService
 from modules.home.graficos import *
@@ -80,15 +81,6 @@ lista_todas_pecas.insert(0, {"LABEL": "TODAS"})
 # Callbacks para os inputs ###################################################
 ##############################################################################
 
-@callback(
-    Output("input-intervalo-datas-geral", "maxDate"),
-    Output("input-intervalo-datas-geral", "value", allow_duplicate=True),  # allow_duplicate para permitir atualizar o valor mesmo que seja o mesmo (útil para resetar o input)
-    Input("url", "pathname"),  # fires on page load
-    prevent_initial_call=True,
-)
-def cb_input_datas_home_dinamico(_):
-    hoje = date.today()
-    return hoje, [date(2024, 8, 1), hoje]
 
 # Função para validar o input
 def input_valido(datas, lista_modelos, lista_oficinas, lista_secaos, lista_pecas):
@@ -155,7 +147,7 @@ def corrige_input_oficina(lista_oficinas):
         Input("input-select-oficina-visao-geral", "value"),
         Input("input-select-secao-visao-geral", "value"),
         Input("input-select-pecas-visao-geral", "value"),
-    ]
+    ],
 )
 def corrige_input_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
     """
@@ -192,11 +184,10 @@ def corrige_input_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_
     return lista_options, corrige_input(lista_pecas_corrigida)
 
 
-
-
 ##############################################################################
 # Callbacks para os gráficos #################################################
 ##############################################################################
+
 
 @callback(
     Output("graph-visao-geral-gasto-troca-pecas-mensal", "figure"),
@@ -216,7 +207,9 @@ def plota_grafico_linha_custo_mensal(datas, lista_modelos, lista_oficina, lista_
     # Obtem os dados
     df_custo = home_service.get_custo_mensal_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
     df_quantidade = home_service.get_troca_pecas_mensal(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
-    df_custo_retrabalho = home_service.get_custo_mensal_pecas_retrabalho(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
+    df_custo_retrabalho = home_service.get_custo_mensal_pecas_retrabalho(
+        datas, lista_modelos, lista_oficina, lista_secao, lista_pecas
+    )
 
     # Gera o gráfico
     fig = grafico_custo_quantidade_mensal(df_custo, df_quantidade, df_custo_retrabalho)
@@ -251,6 +244,7 @@ def atualiza_tabela_rank_pecas(datas, lista_modelos, lista_oficina, lista_secao,
 
     return False, df.to_dict("records")
 
+
 # Callback para atualizar o link de download quando o botão for clicado
 @callback(
     Output("download-excel-tabela-rank-pecas", "data"),
@@ -262,20 +256,19 @@ def atualiza_tabela_rank_pecas(datas, lista_modelos, lista_oficina, lista_secao,
         Input("input-select-secao-visao-geral", "value"),
         Input("input-select-pecas-visao-geral", "value"),
     ],
-    prevent_initial_call=True
+    prevent_initial_call=True,
 )
 def download_excel_tabela_top_rank_pecas(n_clicks, datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
-    if not n_clicks or n_clicks <= 0: # Garantre que ao iniciar ou carregar a page, o arquivo não seja baixado
+    if not n_clicks or n_clicks <= 0:  # Garantre que ao iniciar ou carregar a page, o arquivo não seja baixado
         return dash.no_update
 
-    date_now = date.today().strftime('%d-%m-%Y')
-    
+    date_now = date.today().strftime("%d-%m-%Y")
+
     # Obtem os dados
     df = home_service.get_rank_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
 
     excel_data = gerar_excel(df=df)
     return dcc.send_bytes(excel_data, f"tabela_rank_pecas_{date_now}.xlsx")
-
 
 
 @callback(
@@ -298,6 +291,7 @@ def atualiza_tabela_principais_pecas(datas, lista_modelos, lista_oficina, lista_
 
     return df.to_dict("records")
 
+
 # Callback para atualizar o link de download quando o botão for clicado
 @callback(
     Output("download-excel-tabela-principais-pecas", "data"),
@@ -309,19 +303,20 @@ def atualiza_tabela_principais_pecas(datas, lista_modelos, lista_oficina, lista_
         Input("input-select-secao-visao-geral", "value"),
         Input("input-select-pecas-visao-geral", "value"),
     ],
-    prevent_initial_call=True
+    prevent_initial_call=True,
 )
 def download_excel_principais_pecas(n_clicks, datas, lista_modelos, lista_oficina, lista_secao, lista_pecas):
-    if not n_clicks or n_clicks <= 0: # Garantre que ao iniciar ou carregar a page, o arquivo não seja baixado
+    if not n_clicks or n_clicks <= 0:  # Garantre que ao iniciar ou carregar a page, o arquivo não seja baixado
         return dash.no_update
 
-    date_now = date.today().strftime('%d-%m-%Y')
-    
+    date_now = date.today().strftime("%d-%m-%Y")
+
     # Obtem os dados
     df = home_service.get_principais_pecas(datas, lista_modelos, lista_oficina, lista_secao, lista_pecas)
 
     excel_data = gerar_excel(df=df)
     return dcc.send_bytes(excel_data, f"tabela_principais_pecas_{date_now}.xlsx")
+
 
 ##############################################################################
 ### Callbacks para os labels #################################################
@@ -387,442 +382,450 @@ def gera_labels_inputs(campo):
 ##############################################################################
 # Layout #####################################################################
 ##############################################################################
-layout = dbc.Container(
-    [
-        # Loading
-        dmc.LoadingOverlay(
-            visible=True,
-            id="loading-overlay-visao-geral",
-            loaderProps={"size": "xl"},
-            overlayProps={
-                "radius": "lg",
-                "blur": 2,
-                "style": {
-                    "top": 0,  # Start from the top of the viewport
-                    "left": 0,  # Start from the left of the viewport
-                    "width": "100vw",  # Cover the entire width of the viewport
-                    "height": "100vh",  # Cover the entire height of the viewport
+
+
+def layout():
+    return dbc.Container(
+        [
+            # Loading
+            dmc.LoadingOverlay(
+                visible=True,
+                id="loading-overlay-visao-geral",
+                loaderProps={"size": "xl"},
+                overlayProps={
+                    "radius": "lg",
+                    "blur": 2,
+                    "style": {
+                        "top": 0,  # Start from the top of the viewport
+                        "left": 0,  # Start from the left of the viewport
+                        "width": "100vw",  # Cover the entire width of the viewport
+                        "height": "100vh",  # Cover the entire height of the viewport
+                    },
                 },
-            },
-            zIndex=10,
-        ),
-        # Cabeçalho
-        dbc.Row(
-            [
-                dbc.Col(
-                    [
-                        # Cabeçalho e Inputs
+                zIndex=10,
+            ),
+            # Cabeçalho
+            dbc.Row(
+                [
+                    dbc.Col(
+                        [
+                            # Cabeçalho e Inputs
+                            dbc.Row(
+                                [
+                                    html.Hr(),
+                                    dbc.Row(
+                                        [
+                                            dbc.Col(DashIconify(icon="mdi:tools", width=45), width="auto"),
+                                            dbc.Col(
+                                                html.H1(
+                                                    [
+                                                        "Visão geral das\u00a0",
+                                                        html.Strong("peças"),
+                                                    ],
+                                                    className="align-self-center",
+                                                ),
+                                                width=True,
+                                            ),
+                                        ],
+                                        align="center",
+                                    ),
+                                    dmc.Space(h=15),
+                                    html.Hr(),
+                                    dbc.Col(
+                                        dbc.Card(
+                                            [
+                                                html.Div(
+                                                    [
+                                                        dbc.Label("Data (intervalo) de análise"),
+                                                        dmc.DatePicker(
+                                                            id="input-intervalo-datas-geral",
+                                                            allowSingleDateInRange=True,
+                                                            type="range",
+                                                            minDate=date(2024, 8, 1),
+                                                            maxDate=date.today(),
+                                                            value=[date(2024, 8, 1), date.today()],
+                                                        ),
+                                                    ],
+                                                    className="dash-bootstrap",
+                                                ),
+                                            ],
+                                            body=True,
+                                        ),
+                                        md=6,
+                                    ),
+                                    dbc.Col(
+                                        dbc.Card(
+                                            [
+                                                html.Div(
+                                                    [
+                                                        dbc.Label("Modelos de Veículos"),
+                                                        dcc.Dropdown(
+                                                            id="input-select-modelo-veiculos-visao-geral",
+                                                            options=[
+                                                                {
+                                                                    "label": os["MODELO"],
+                                                                    "value": os["MODELO"],
+                                                                }
+                                                                for os in lista_todos_modelos_veiculos
+                                                            ],
+                                                            multi=True,
+                                                            value=["TODOS"],
+                                                            placeholder="Selecione um ou mais modelos...",
+                                                        ),
+                                                    ],
+                                                    className="dash-bootstrap",
+                                                ),
+                                            ],
+                                            body=True,
+                                        ),
+                                        md=6,
+                                    ),
+                                    dmc.Space(h=10),
+                                    dbc.Col(
+                                        dbc.Card(
+                                            [
+                                                html.Div(
+                                                    [
+                                                        dbc.Label("Oficinas"),
+                                                        dcc.Dropdown(
+                                                            id="input-select-oficina-visao-geral",
+                                                            options=[
+                                                                {"label": os["LABEL"], "value": os["LABEL"]}
+                                                                for os in lista_todas_oficinas
+                                                            ],
+                                                            multi=True,
+                                                            value=["TODAS"],
+                                                            placeholder="Selecione uma ou mais oficinas...",
+                                                        ),
+                                                    ],
+                                                    className="dash-bootstrap",
+                                                ),
+                                            ],
+                                            body=True,
+                                        ),
+                                        md=6,
+                                    ),
+                                    dbc.Col(
+                                        dbc.Card(
+                                            [
+                                                html.Div(
+                                                    [
+                                                        dbc.Label("Seções (categorias) de manutenção"),
+                                                        dcc.Dropdown(
+                                                            id="input-select-secao-visao-geral",
+                                                            options=[
+                                                                # {"label": "TODAS", "value": "TODAS"},
+                                                                # {
+                                                                #     "label": "BORRACHARIA",
+                                                                #     "value": "MANUTENCAO BORRACHARIA",
+                                                                # },
+                                                                {
+                                                                    "label": "ELETRICA",
+                                                                    "value": "MANUTENCAO ELETRICA",
+                                                                },
+                                                                # {"label": "GARAGEM", "value": "MANUTENÇÃO GARAGEM"},
+                                                                # {
+                                                                #     "label": "LANTERNAGEM",
+                                                                #     "value": "MANUTENCAO LANTERNAGEM",
+                                                                # },
+                                                                # {"label": "LUBRIFICAÇÃO", "value": "LUBRIFICAÇÃO"},
+                                                                {
+                                                                    "label": "MECANICA",
+                                                                    "value": "MANUTENCAO MECANICA",
+                                                                },
+                                                                # {"label": "PINTURA", "value": "MANUTENCAO PINTURA"},
+                                                                # {
+                                                                #     "label": "SERVIÇOS DE TERCEIROS",
+                                                                #     "value": "SERVIÇOS DE TERCEIROS",
+                                                                # },
+                                                                # {
+                                                                #     "label": "SETOR DE ALINHAMENTO",
+                                                                #     "value": "SETOR DE ALINHAMENTO",
+                                                                # },
+                                                                # {
+                                                                #     "label": "SETOR DE POLIMENTO",
+                                                                #     "value": "SETOR DE POLIMENTO",
+                                                                # },
+                                                            ],
+                                                            multi=True,
+                                                            value=["MANUTENCAO ELETRICA", "MANUTENCAO MECANICA"],
+                                                            placeholder="Selecione uma ou mais seções...",
+                                                        ),
+                                                    ],
+                                                    # className="dash-bootstrap",
+                                                ),
+                                            ],
+                                            body=True,
+                                        ),
+                                        md=6,
+                                    ),
+                                    dmc.Space(h=10),
+                                    dbc.Col(
+                                        dbc.Card(
+                                            [
+                                                html.Div(
+                                                    [
+                                                        dbc.Label("Peça específica"),
+                                                        dcc.Dropdown(
+                                                            id="input-select-pecas-visao-geral",
+                                                            options=[
+                                                                {"label": pecas["LABEL"], "value": pecas["LABEL"]}
+                                                                for pecas in lista_todas_pecas
+                                                            ],
+                                                            multi=True,
+                                                            value=["TODAS"],
+                                                            placeholder="Selecione uma ou mais peças específicas...",
+                                                        ),
+                                                    ],
+                                                    className="dash-bootstrap",
+                                                ),
+                                            ],
+                                            body=True,
+                                        ),
+                                        md=12,
+                                    ),
+                                ]
+                            ),
+                        ],
+                    ),
+                ]
+            ),
+            #### ALterar graficos para dados de peças
+            # Gráfico de Retrabalho por Modelo
+            dmc.Space(h=30),
+            dbc.Row(
+                [
+                    dbc.Col(DashIconify(icon="mdi:chart-line", width=45), width="auto"),
+                    dbc.Col(
                         dbc.Row(
                             [
-                                html.Hr(),
+                                html.H4(
+                                    "Gráfico do custo gasto com peças por mês",
+                                    className="align-self-center",
+                                ),
+                                dmc.Space(h=5),
+                                gera_labels_inputs("visao-geral-quanti-frota"),
+                            ]
+                        ),
+                        width=True,
+                    ),
+                ],
+                align="center",
+            ),
+            dcc.Graph(id="graph-visao-geral-gasto-troca-pecas-mensal"),
+            dmc.Space(h=40),
+            # Tabela com as estatísticas gerais de Retrabalho
+            dbc.Row(
+                [
+                    dbc.Col(DashIconify(icon="mdi:trophy", width=45), width="auto"),
+                    dbc.Col(
+                        dbc.Row(
+                            [
+                                html.H4(
+                                    "PRINCIPAIS PEÇAS",
+                                    className="align-self-center",
+                                ),
+                                dmc.Space(h=5),
                                 dbc.Row(
                                     [
-                                        dbc.Col(DashIconify(icon="mdi:tools", width=45), width="auto"),
+                                        dbc.Col(gera_labels_inputs("visao-geral-tabela-tipo-os"), width=True),
                                         dbc.Col(
-                                            html.H1(
+                                            html.Div(
                                                 [
-                                                    "Visão geral das\u00a0",
-                                                    html.Strong("peças"),
+                                                    html.Button(
+                                                        "Exportar para Excel",
+                                                        id="btn-exportar-rank-pecas",
+                                                        n_clicks=0,
+                                                        style={
+                                                            "background-color": "#007bff",  # Azul
+                                                            "color": "white",
+                                                            "border": "none",
+                                                            "padding": "10px 20px",
+                                                            "border-radius": "8px",
+                                                            "cursor": "pointer",
+                                                            "font-size": "16px",
+                                                            "font-weight": "bold",
+                                                        },
+                                                    ),
+                                                    dcc.Download(id="download-excel-tabela-rank-pecas"),
                                                 ],
-                                                className="align-self-center",
+                                                style={"text-align": "right"},
                                             ),
-                                            width=True,
+                                            width="auto",
                                         ),
                                     ],
                                     align="center",
-                                ),
-                                dmc.Space(h=15),
-                                html.Hr(),
-                                dbc.Col(
-                                    dbc.Card(
-                                        [
-                                            html.Div(
-                                                [
-                                                    dbc.Label("Data (intervalo) de análise"),
-                                                    dmc.DatePicker(
-                                                        id="input-intervalo-datas-geral",
-                                                        allowSingleDateInRange=True,
-                                                        type="range",
-                                                        minDate=date(2024, 8, 1),
-                                                        maxDate=date.today(),
-                                                        value=[date(2024, 8, 1), date.today()],
-                                                    ),
-                                                ],
-                                                className="dash-bootstrap",
-                                            ),
-                                        ],
-                                        body=True,
-                                    ),
-                                    md=6,
-                                ),
-                                dbc.Col(
-                                    dbc.Card(
-                                        [
-                                            html.Div(
-                                                [
-                                                    dbc.Label("Modelos de Veículos"),
-                                                    dcc.Dropdown(
-                                                        id="input-select-modelo-veiculos-visao-geral",
-                                                        options=[
-                                                            {
-                                                                "label": os["MODELO"],
-                                                                "value": os["MODELO"],
-                                                            }
-                                                            for os in lista_todos_modelos_veiculos
-                                                        ],
-                                                        multi=True,
-                                                        value=["TODOS"],
-                                                        placeholder="Selecione um ou mais modelos...",
-                                                    ),
-                                                ],
-                                                className="dash-bootstrap",
-                                            ),
-                                        ],
-                                        body=True,
-                                    ),
-                                    md=6,
-                                ),
-                                dmc.Space(h=10),
-                                dbc.Col(
-                                    dbc.Card(
-                                        [
-                                            html.Div(
-                                                [
-                                                    dbc.Label("Oficinas"),
-                                                    dcc.Dropdown(
-                                                        id="input-select-oficina-visao-geral",
-                                                        options=[{"label": os["LABEL"], "value": os["LABEL"]} for os in lista_todas_oficinas],
-                                                        multi=True,
-                                                        value=["TODAS"],
-                                                        placeholder="Selecione uma ou mais oficinas...",
-                                                    ),
-                                                ],
-                                                className="dash-bootstrap",
-                                            ),
-                                        ],
-                                        body=True,
-                                    ),
-                                    md=6,
-                                ),
-                                dbc.Col(
-                                    dbc.Card(
-                                        [
-                                            html.Div(
-                                                [
-                                                    dbc.Label("Seções (categorias) de manutenção"),
-                                                    dcc.Dropdown(
-                                                        id="input-select-secao-visao-geral",
-                                                        options=[
-                                                            # {"label": "TODAS", "value": "TODAS"},
-                                                            # {
-                                                            #     "label": "BORRACHARIA",
-                                                            #     "value": "MANUTENCAO BORRACHARIA",
-                                                            # },
-                                                            {
-                                                                "label": "ELETRICA",
-                                                                "value": "MANUTENCAO ELETRICA",
-                                                            },
-                                                            # {"label": "GARAGEM", "value": "MANUTENÇÃO GARAGEM"},
-                                                            # {
-                                                            #     "label": "LANTERNAGEM",
-                                                            #     "value": "MANUTENCAO LANTERNAGEM",
-                                                            # },
-                                                            # {"label": "LUBRIFICAÇÃO", "value": "LUBRIFICAÇÃO"},
-                                                            {
-                                                                "label": "MECANICA",
-                                                                "value": "MANUTENCAO MECANICA",
-                                                            },
-                                                            # {"label": "PINTURA", "value": "MANUTENCAO PINTURA"},
-                                                            # {
-                                                            #     "label": "SERVIÇOS DE TERCEIROS",
-                                                            #     "value": "SERVIÇOS DE TERCEIROS",
-                                                            # },
-                                                            # {
-                                                            #     "label": "SETOR DE ALINHAMENTO",
-                                                            #     "value": "SETOR DE ALINHAMENTO",
-                                                            # },
-                                                            # {
-                                                            #     "label": "SETOR DE POLIMENTO",
-                                                            #     "value": "SETOR DE POLIMENTO",
-                                                            # },
-                                                        ],
-                                                        multi=True,
-                                                        value=["MANUTENCAO ELETRICA", "MANUTENCAO MECANICA"],
-                                                        placeholder="Selecione uma ou mais seções...",
-                                                    ),
-                                                ],
-                                                # className="dash-bootstrap",
-                                            ),
-                                        ],
-                                        body=True,
-                                    ),
-                                    md=6,
-                                ),
-                                dmc.Space(h=10),
-                                dbc.Col(
-                                    dbc.Card(
-                                        [
-                                            html.Div(
-                                                [
-                                                    dbc.Label("Peça específica"),
-                                                    dcc.Dropdown(
-                                                        id="input-select-pecas-visao-geral",
-                                                        options=[{"label": pecas["LABEL"], "value": pecas["LABEL"]} for pecas in lista_todas_pecas],
-                                                        multi=True,
-                                                        value=["TODAS"],
-                                                        placeholder="Selecione uma ou mais peças específicas...",
-                                                    ),
-                                                ],
-                                                className="dash-bootstrap",
-                                            ),
-                                        ],
-                                        body=True,
-                                    ),
-                                    md=12,
+                                    justify="between",  # Deixa os itens espaçados
                                 ),
                             ]
                         ),
-                    ],
-                ),
-            ]
-        ),
-        #### ALterar graficos para dados de peças
-        # Gráfico de Retrabalho por Modelo
-        dmc.Space(h=30),
-        dbc.Row(
-            [
-                dbc.Col(DashIconify(icon="mdi:chart-line", width=45), width="auto"),
-                dbc.Col(
-                    dbc.Row(
-                        [
-                            html.H4(
-                                "Gráfico do custo gasto com peças por mês",
-                                className="align-self-center",
-                            ),
-                            dmc.Space(h=5),
-                            gera_labels_inputs("visao-geral-quanti-frota"),
-                        ]
+                        width=True,
                     ),
-                    width=True,
-                ),
-            ],
-            align="center",
-        ),
-        dcc.Graph(id="graph-visao-geral-gasto-troca-pecas-mensal"),
-        dmc.Space(h=40),
-        # Tabela com as estatísticas gerais de Retrabalho
-        dbc.Row(
-            [
-                dbc.Col(DashIconify(icon="mdi:trophy", width=45), width="auto"),
-                dbc.Col(
-                    dbc.Row(
-                        [
-                            html.H4(
-                                "PRINCIPAIS PEÇAS",
-                                className="align-self-center",
-                            ),
-                            dmc.Space(h=5),
-                            dbc.Row(
-                                [
-                                    dbc.Col(gera_labels_inputs("visao-geral-tabela-tipo-os"), width=True),
-                                    dbc.Col(
-                                        html.Div(
-                                            [
-                                                html.Button(
-                                                    "Exportar para Excel",
-                                                    id="btn-exportar-rank-pecas",
-                                                    n_clicks=0,
-                                                    style={
-                                                        "background-color": "#007bff",  # Azul
-                                                        "color": "white",
-                                                        "border": "none",
-                                                        "padding": "10px 20px",
-                                                        "border-radius": "8px",
-                                                        "cursor": "pointer",
-                                                        "font-size": "16px",
-                                                        "font-weight": "bold",
-                                                    },
-                                                ),
-                                                dcc.Download(id="download-excel-tabela-rank-pecas"),
-                                            ],
-                                            style={"text-align": "right"},
-                                        ),
-                                        width="auto",
-                                    ),
-                                ],
-                                align="center",
-                                justify="between",  # Deixa os itens espaçados
-                            ),
-                        ]
-                    ),
-                    width=True,
-                ),
-            ],
-            align="center",
-        ),
-        dmc.Space(h=20),
-        # dag.AgGrid(
-        #     # enableEnterpriseModules=True,
-        #     id="tabela-ranking-de-pecas-mais-caras",
-        #     columnDefs=home_tabelas.tbl_ranking_de_pecas_mais_trocadas,
-        #     rowData=[],
-        #     defaultColDef={"filter": True, "floatingFilter": True},
-        #     columnSize="autoSize",
-        #     dashGridOptions={
-        #         "localeText": locale_utils.AG_GRID_LOCALE_BR,
-        #     },
-        #     # Permite resize --> https://community.plotly.com/t/anyone-have-better-ag-grid-resizing-scheme/78398/5
-        #     style={"height": 400, "resize": "vertical", "overflow": "hidden"},
-        # ),
-        dag.AgGrid(
-        id="tabela-ranking-de-pecas-mais-caras",
-        columnDefs=home_tabelas.tbl_ranking_de_pecas_mais_trocadas,
-        rowData=[],  # suas 2000 linhas
-        defaultColDef={"filter": True, "floatingFilter": True},
-        # Remova columnSize="autoSize" se estiver lento
-        dashGridOptions={
-            "localeText": locale_utils.AG_GRID_LOCALE_BR,
-            "pagination": True,            # habilita paginação
-            "paginationPageSize": 50       # mostra 50 linhas por página (ajuste conforme quiser)
-        },
-        style={"height": 400, "overflow": "hidden"},
-        ),
-        dmc.Space(h=40),
-        # Tabela com as estatísticas gerais por Colaborador
-        # dbc.Row(
-        #     [
-        #         dbc.Col(DashIconify(icon="mdi:bus-wrench", width=45), width="auto"),
-        #         dbc.Col(
-        #             dbc.Row(
-        #                 [
-        #                     html.H4(
-        #                         "PRINCIPAIS PEÇAS",
-        #                         className="align-self-center",
-        #                     ),
-        #                     dmc.Space(h=5),
-        #                     dbc.Row(
-        #                         [
-        #                             dbc.Col(gera_labels_inputs("visao-geral-tabela-principais-pecas"), width=True),
-        #                             dbc.Col(
-        #                                 html.Div(
-        #                                     [
-        #                                         html.Button(
-        #                                             "Exportar para Excel",
-        #                                             id="btn-exportar-tabela-principais-pecas",
-        #                                             n_clicks=0,
-        #                                             style={
-        #                                                 "background-color": "#007bff",  # Azul
-        #                                                 "color": "white",
-        #                                                 "border": "none",
-        #                                                 "padding": "10px 20px",
-        #                                                 "border-radius": "8px",
-        #                                                 "cursor": "pointer",
-        #                                                 "font-size": "16px",
-        #                                                 "font-weight": "bold",
-        #                                             },
-        #                                         ),
-        #                                         dcc.Download(id="download-excel-tabela-principais-pecas"),
-        #                                     ],
-        #                                     style={"text-align": "right"},
-        #                                 ),
-        #                                 width="auto",
-        #                             ),
-        #                         ],
-        #                         align="center",
-        #                         justify="between",  # Deixa os itens espaçados
-        #                     ),
-        #                 ]
-        #             ),
-        #             width=True,
-        #         ),
-        #     ],
-        #     align="center",
-        # ),
-
-        # dmc.Space(h=20),
-        # dag.AgGrid(
-        #     id="tabela-principais-pecas",
-        #     columnDefs=home_tabelas.tbl_pincipais_pecas,
-        #     rowData=[],
-        #     defaultColDef={
-        #     "filter": True,
-        #     "floatingFilter": True,
-        #     "resizable": True,
-        #     "autoSize": True,  # <- aqui já resolve para todas
-        #     },
-        #     columnSize="responsiveSizeToFit",  # Corrigido aqui
-        #     dashGridOptions={
-        #         "localeText": locale_utils.AG_GRID_LOCALE_BR,
-        #     },
-        #     style={"height": 400, "resize": "vertical", "overflow": "hidden"},
-        # ),
-        dmc.Space(h=40),
-                # dmc.Space(h=20),
-        # dag.AgGrid(
-        #     id="tabela-veiculos-que-mais-trocam-pecas",
-        #     columnDefs=home_tabelas.tbl_veiculos_que_mais_trocam_pecas,
-        #     rowData=[],
-        #     defaultColDef={"filter": True, "floatingFilter": True},
-        #     columnSize="autoSize",
-        #     dashGridOptions={
-        #         "localeText": locale_utils.AG_GRID_LOCALE_BR,
-        #     },
-        #     # Permite resize --> https://community.plotly.com/t/anyone-have-better-ag-grid-resizing-scheme/78398/5
-        #     style={"height": 400, "resize": "vertical", "overflow": "hidden"},
-        # ),
-        # dmc.Space(h=40),
-        # # Tabela com as estatísticas gerais por Veículo
-        # dbc.Row(
-        #     [
-        #         dbc.Col(DashIconify(icon="mdi:bus-wrench", width=45), width="auto"),
-        #         dbc.Col(
-        #             dbc.Row(
-        #                 [
-        #                     html.H4(
-        #                         "Tabela principais peças",
-        #                         className="align-self-center",
-        #                     ),
-        #                     dmc.Space(h=5),
-        #                     dbc.Row(
-        #                         [
-        #                             dbc.Col(gera_labels_inputs("visao-geral-tabela-principais-pecas"), width=True),
-        #                             dbc.Col(
-        #                                 html.Div(
-        #                                     [
-        #                                         html.Button(
-        #                                             "Exportar para Excel",
-        #                                             id="btn-exportar-tabela-veiculo",
-        #                                             n_clicks=0,
-        #                                             style={
-        #                                                 "background-color": "#007bff",  # Azul
-        #                                                 "color": "white",
-        #                                                 "border": "none",
-        #                                                 "padding": "10px 20px",
-        #                                                 "border-radius": "8px",
-        #                                                 "cursor": "pointer",
-        #                                                 "font-size": "16px",
-        #                                                 "font-weight": "bold",
-        #                                             },
-        #                                         ),
-        #                                         dcc.Download(id="download-excel-mais-trocam-pecas"),
-        #                                     ],
-        #                                     style={"text-align": "right"},
-        #                                 ),
-        #                                 width="auto",
-        #                             ),
-        #                         ],
-        #                         align="center",
-        #                         justify="between",  # Deixa os itens espaçados
-        #                     ),
-        #                 ]
-        #             ),
-        #             width=True,
-        #         ),
-        #     ],
-        #     align="center",
-        # ),
-    ]
-)
+                ],
+                align="center",
+            ),
+            dmc.Space(h=20),
+            # dag.AgGrid(
+            #     # enableEnterpriseModules=True,
+            #     id="tabela-ranking-de-pecas-mais-caras",
+            #     columnDefs=home_tabelas.tbl_ranking_de_pecas_mais_trocadas,
+            #     rowData=[],
+            #     defaultColDef={"filter": True, "floatingFilter": True},
+            #     columnSize="autoSize",
+            #     dashGridOptions={
+            #         "localeText": locale_utils.AG_GRID_LOCALE_BR,
+            #     },
+            #     # Permite resize --> https://community.plotly.com/t/anyone-have-better-ag-grid-resizing-scheme/78398/5
+            #     style={"height": 400, "resize": "vertical", "overflow": "hidden"},
+            # ),
+            dag.AgGrid(
+                id="tabela-ranking-de-pecas-mais-caras",
+                columnDefs=home_tabelas.tbl_ranking_de_pecas_mais_trocadas,
+                rowData=[],  # suas 2000 linhas
+                defaultColDef={"filter": True, "floatingFilter": True},
+                # Remova columnSize="autoSize" se estiver lento
+                dashGridOptions={
+                    "localeText": locale_utils.AG_GRID_LOCALE_BR,
+                    "pagination": True,  # habilita paginação
+                    "paginationPageSize": 50,  # mostra 50 linhas por página (ajuste conforme quiser)
+                },
+                style={"height": 400, "overflow": "hidden"},
+            ),
+            dmc.Space(h=40),
+            # Tabela com as estatísticas gerais por Colaborador
+            # dbc.Row(
+            #     [
+            #         dbc.Col(DashIconify(icon="mdi:bus-wrench", width=45), width="auto"),
+            #         dbc.Col(
+            #             dbc.Row(
+            #                 [
+            #                     html.H4(
+            #                         "PRINCIPAIS PEÇAS",
+            #                         className="align-self-center",
+            #                     ),
+            #                     dmc.Space(h=5),
+            #                     dbc.Row(
+            #                         [
+            #                             dbc.Col(gera_labels_inputs("visao-geral-tabela-principais-pecas"), width=True),
+            #                             dbc.Col(
+            #                                 html.Div(
+            #                                     [
+            #                                         html.Button(
+            #                                             "Exportar para Excel",
+            #                                             id="btn-exportar-tabela-principais-pecas",
+            #                                             n_clicks=0,
+            #                                             style={
+            #                                                 "background-color": "#007bff",  # Azul
+            #                                                 "color": "white",
+            #                                                 "border": "none",
+            #                                                 "padding": "10px 20px",
+            #                                                 "border-radius": "8px",
+            #                                                 "cursor": "pointer",
+            #                                                 "font-size": "16px",
+            #                                                 "font-weight": "bold",
+            #                                             },
+            #                                         ),
+            #                                         dcc.Download(id="download-excel-tabela-principais-pecas"),
+            #                                     ],
+            #                                     style={"text-align": "right"},
+            #                                 ),
+            #                                 width="auto",
+            #                             ),
+            #                         ],
+            #                         align="center",
+            #                         justify="between",  # Deixa os itens espaçados
+            #                     ),
+            #                 ]
+            #             ),
+            #             width=True,
+            #         ),
+            #     ],
+            #     align="center",
+            # ),
+            # dmc.Space(h=20),
+            # dag.AgGrid(
+            #     id="tabela-principais-pecas",
+            #     columnDefs=home_tabelas.tbl_pincipais_pecas,
+            #     rowData=[],
+            #     defaultColDef={
+            #     "filter": True,
+            #     "floatingFilter": True,
+            #     "resizable": True,
+            #     "autoSize": True,  # <- aqui já resolve para todas
+            #     },
+            #     columnSize="responsiveSizeToFit",  # Corrigido aqui
+            #     dashGridOptions={
+            #         "localeText": locale_utils.AG_GRID_LOCALE_BR,
+            #     },
+            #     style={"height": 400, "resize": "vertical", "overflow": "hidden"},
+            # ),
+            dmc.Space(h=40),
+            # dmc.Space(h=20),
+            # dag.AgGrid(
+            #     id="tabela-veiculos-que-mais-trocam-pecas",
+            #     columnDefs=home_tabelas.tbl_veiculos_que_mais_trocam_pecas,
+            #     rowData=[],
+            #     defaultColDef={"filter": True, "floatingFilter": True},
+            #     columnSize="autoSize",
+            #     dashGridOptions={
+            #         "localeText": locale_utils.AG_GRID_LOCALE_BR,
+            #     },
+            #     # Permite resize --> https://community.plotly.com/t/anyone-have-better-ag-grid-resizing-scheme/78398/5
+            #     style={"height": 400, "resize": "vertical", "overflow": "hidden"},
+            # ),
+            # dmc.Space(h=40),
+            # # Tabela com as estatísticas gerais por Veículo
+            # dbc.Row(
+            #     [
+            #         dbc.Col(DashIconify(icon="mdi:bus-wrench", width=45), width="auto"),
+            #         dbc.Col(
+            #             dbc.Row(
+            #                 [
+            #                     html.H4(
+            #                         "Tabela principais peças",
+            #                         className="align-self-center",
+            #                     ),
+            #                     dmc.Space(h=5),
+            #                     dbc.Row(
+            #                         [
+            #                             dbc.Col(gera_labels_inputs("visao-geral-tabela-principais-pecas"), width=True),
+            #                             dbc.Col(
+            #                                 html.Div(
+            #                                     [
+            #                                         html.Button(
+            #                                             "Exportar para Excel",
+            #                                             id="btn-exportar-tabela-veiculo",
+            #                                             n_clicks=0,
+            #                                             style={
+            #                                                 "background-color": "#007bff",  # Azul
+            #                                                 "color": "white",
+            #                                                 "border": "none",
+            #                                                 "padding": "10px 20px",
+            #                                                 "border-radius": "8px",
+            #                                                 "cursor": "pointer",
+            #                                                 "font-size": "16px",
+            #                                                 "font-weight": "bold",
+            #                                             },
+            #                                         ),
+            #                                         dcc.Download(id="download-excel-mais-trocam-pecas"),
+            #                                     ],
+            #                                     style={"text-align": "right"},
+            #                                 ),
+            #                                 width="auto",
+            #                             ),
+            #                         ],
+            #                         align="center",
+            #                         justify="between",  # Deixa os itens espaçados
+            #                     ),
+            #                 ]
+            #             ),
+            #             width=True,
+            #         ),
+            #     ],
+            #     align="center",
+            # ),
+        ]
+    )
 
 
 ##############################################################################
